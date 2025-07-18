@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}内容管理{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h2>📝 内容管理</h2>
+            <p class="text-muted">查看和管理爬取到的内容</p>
+        </div>
+        <div class="col-md-6 text-end">
+            <button class="btn btn-outline-primary" onclick="refreshPosts()">
+                <i class="bi bi-arrow-clockwise"></i> 刷新
+            </button>
+        </div>
+    </div>
+
+    <!-- 帖子列表 -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">内容列表</h5>
+                </div>
+                <div class="card-body">
+                    {% if posts.items %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>标题</th>
+                                    <th>作者</th>
+                                    <th>来源</th>
+                                    <th>爬取时间</th>
+                                    <th>推送状态</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for post in posts.items %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ post.title[:60] }}{% if post.title|length > 60 %}...{% endif %}</strong>
+                                        {% if post.content %}
+                                        <br><small class="text-muted">{{ post.content[:100] }}{% if post.content|length > 100 %}...{% endif %}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ post.author or '-' }}</td>
+                                    <td>
+                                        {% if post.url %}
+                                        <a href="{{ post.url }}" target="_blank" class="text-decoration-none">
+                                            查看原文 <i class="bi bi-external-link"></i>
+                                        </a>
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ post.created_at.strftime('%m-%d %H:%M') if post.created_at else '-' }}</td>
+                                    <td>
+                                        {% if post.pushed %}
+                                        <span class="badge bg-success">已推送</span>
+                                        {% else %}
+                                        <span class="badge bg-warning">未推送</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if not post.pushed %}
+                                        <button class="btn btn-sm btn-outline-primary" onclick="pushPost({{ post.id }})">
+                                            <i class="bi bi-send"></i> 推送
+                                        </button>
+                                        {% endif %}
+                                        <button class="btn btn-sm btn-outline-info" onclick="viewPost({{ post.id }})">
+                                            <i class="bi bi-eye"></i> 查看
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- 分页 -->
+                    {% if posts.pages > 1 %}
+                    <nav class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            {% if posts.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('posts', page=posts.prev_num) }}">上一页</a>
+                            </li>
+                            {% endif %}
+                            
+                            {% for page_num in posts.iter_pages() %}
+                                {% if page_num %}
+                                    {% if page_num != posts.page %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('posts', page=page_num) }}">{{ page_num }}</a>
+                                    </li>
+                                    {% else %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ page_num }}</span>
+                                    </li>
+                                    {% endif %}
+                                {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if posts.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('posts', page=posts.next_num) }}">下一页</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-journal-text text-muted" style="font-size: 3rem;"></i>
+                        <h4 class="text-muted mt-3">暂无内容</h4>
+                        <p class="text-muted">还没有爬取到任何内容，请先配置网站和关键词，然后执行爬取任务</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function refreshPosts() {
+    window.location.reload();
+}
+
+function pushPost(postId) {
+    fetch(`/posts/${postId}/push`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showAlert(result.message, 'success');
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            showAlert(result.message, 'danger');
+        }
+    })
+    .catch(error => {
+        showAlert('推送失败：' + error.message, 'danger');
+    });
+}
+
+function viewPost(postId) {
+    // 这里可以实现查看帖子详情的功能
+    window.open(`/posts/${postId}/detail`, '_blank');
+}
+
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.top = '20px';
+    alertDiv.style.right = '20px';
+    alertDiv.style.zIndex = '9999';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 3000);
+}
+</script>
+{% endblock %} 

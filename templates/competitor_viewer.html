@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>竞品动态查看 - 只读模式</title>
+    <meta http-equiv="refresh" content="300">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+            border: 3px solid #00f2fe;
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            font-size: 2.2em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        .header p {
+            color: #7f8c8d;
+            font-size: 1.1em;
+            margin-bottom: 15px;
+        }
+        
+        .auto-refresh {
+            background: #e8f5e8;
+            color: #2d5a2d;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .readonly-notice {
+            background: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .sessions-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border: 1px solid #e9ecef;
+        }
+        
+        .section-title {
+            font-size: 1.5em;
+            color: #2c3e50;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 2px solid #00f2fe;
+            padding-bottom: 10px;
+        }
+        
+        .session-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-left: 5px solid #00f2fe;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .session-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+        }
+        
+        .session-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        
+        .session-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .session-name {
+            font-size: 1.2em;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+        
+        .session-time {
+            color: #7f8c8d;
+            font-size: 0.95em;
+            background: white;
+            padding: 5px 12px;
+            border-radius: 15px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .session-stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+            flex-wrap: wrap;
+        }
+        
+        .stat-item {
+            background: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            border: 1px solid #dee2e6;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .session-summary {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #e9ecef;
+            white-space: pre-wrap;
+            line-height: 1.6;
+            max-height: 400px;
+            overflow-y: auto;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
+        }
+        
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .status-completed {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            color: #155724;
+            border: 1px solid #b8dabc;
+        }
+        
+        .status-processing {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+            color: #856404;
+            border: 1px solid #f5d564;
+        }
+        
+        .status-failed {
+            background: linear-gradient(135deg, #f8d7da 0%, #f1b0b7 100%);
+            color: #721c24;
+            border: 1px solid #e2a3a7;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: #7f8c8d;
+        }
+        
+        .empty-state h3 {
+            margin-bottom: 15px;
+            color: #95a5a6;
+            font-size: 1.5em;
+        }
+        
+        .empty-state p {
+            font-size: 1.1em;
+        }
+        
+        .last-updated {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 0.9em;
+            margin-top: 30px;
+            padding: 15px;
+            background: rgba(255,255,255,0.7);
+            border-radius: 10px;
+        }
+        
+        .loading-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #00f2fe;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            z-index: 1000;
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 1.8em;
+            }
+            
+            .session-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .session-stats {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .stat-item {
+                justify-content: center;
+            }
+        }
+        
+        /* 动画效果 */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .session-card {
+            animation: fadeInUp 0.6s ease-out;
+        }
+        
+        .session-card:nth-child(2) { animation-delay: 0.1s; }
+        .session-card:nth-child(3) { animation-delay: 0.2s; }
+        .session-card:nth-child(4) { animation-delay: 0.3s; }
+        .session-card:nth-child(5) { animation-delay: 0.4s; }
+    </style>
+</head>
+<body>
+    <div class="loading-indicator" id="loadingIndicator">
+        ⟳ 正在刷新数据...
+    </div>
+    
+    <div class="container">
+        <!-- 头部 -->
+        <header class="header">
+            <h1>👀 竞品动态查看</h1>
+            <p>实时监控竞品动态，只读展示模式</p>
+            <div class="auto-refresh">
+                🔄 每5分钟自动刷新
+            </div>
+        </header>
+        
+        <!-- 只读提示 -->
+        <div class="readonly-notice">
+            📖 <strong>只读模式</strong> - 您正在查看竞品监控结果，不能进行配置和操作
+        </div>
+        
+        <!-- 监控结果展示 -->
+        <section class="sessions-section">
+            <h2 class="section-title">
+                📊 最新监控结果
+            </h2>
+            
+            {% if sessions %}
+                {% for session in sessions %}
+                <div class="session-card">
+                    <div class="session-header">
+                        <div class="session-name">{{ session.session_name }}</div>
+                        <div>
+                            <span class="status-badge status-{{ session.status }}">
+                                {% if session.status == 'completed' %}✅ 已完成
+                                {% elif session.status == 'processing' %}⏳ 处理中
+                                {% else %}❌ 失败{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="session-stats">
+                        <div class="stat-item">
+                            <span>📅</span>
+                            <span>{{ session.crawl_time[:19].replace('T', ' ') }}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span>📝</span>
+                            <span>总计 {{ session.total_posts }} 条</span>
+                        </div>
+                        <div class="stat-item">
+                            <span>✅</span>
+                            <span>处理 {{ session.processed_posts }} 条</span>
+                        </div>
+                    </div>
+                    
+                    {% if session.ai_summary %}
+                    <div class="session-summary">{{ session.ai_summary }}</div>
+                    {% else %}
+                    <div class="session-summary" style="color: #7f8c8d; font-style: italic;">
+                        暂无AI分析结果
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <h3>🌟 暂无监控数据</h3>
+                    <p>系统还没有进行过竞品监控，或正在处理中...</p>
+                </div>
+            {% endif %}
+        </section>
+        
+        <!-- 更新时间 -->
+        <div class="last-updated">
+            <strong>最后更新：</strong>{{ now or '未知' }} | 
+            <strong>下次刷新：</strong><span id="nextRefresh">5分钟后</span>
+        </div>
+    </div>
+    
+    <script>
+        // 倒计时显示下次刷新时间
+        let refreshCountdown = 300; // 5分钟 = 300秒
+        
+        function updateCountdown() {
+            const minutes = Math.floor(refreshCountdown / 60);
+            const seconds = refreshCountdown % 60;
+            const nextRefreshElement = document.getElementById('nextRefresh');
+            
+            if (nextRefreshElement) {
+                if (refreshCountdown > 0) {
+                    nextRefreshElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                    refreshCountdown--;
+                } else {
+                    nextRefreshElement.textContent = '正在刷新...';
+                    showLoading();
+                }
+            }
+        }
+        
+        function showLoading() {
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            if (loadingIndicator) {
+                loadingIndicator.style.display = 'block';
+                setTimeout(() => {
+                    loadingIndicator.style.display = 'none';
+                }, 3000);
+            }
+        }
+        
+        // 启动倒计时
+        setInterval(updateCountdown, 1000);
+        
+        // 检测是否刚刷新
+        if (performance.navigation.type === 1) {
+            showLoading();
+        }
+        
+        // 页面可见性变化时的处理
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible') {
+                // 页面重新可见时，可以选择立即刷新数据
+                console.log('页面重新可见，数据可能需要更新');
+            }
+        });
+        
+        // 添加一些交互效果
+        document.addEventListener('DOMContentLoaded', function() {
+            // 为会话卡片添加点击效果
+            const sessionCards = document.querySelectorAll('.session-card');
+            sessionCards.forEach(card => {
+                card.addEventListener('click', function() {
+                    // 可以添加点击展开/收起的功能
+                    const summary = this.querySelector('.session-summary');
+                    if (summary) {
+                        summary.style.maxHeight = summary.style.maxHeight === 'none' ? '400px' : 'none';
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html> 

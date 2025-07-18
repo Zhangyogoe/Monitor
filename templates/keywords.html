@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+
+{% block title %}关键词管理{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h2>🔍 关键词管理</h2>
+            <p class="text-muted">管理监控关键词和分类规则</p>
+        </div>
+        <div class="col-md-6 text-end">
+            <button class="btn btn-primary" onclick="showAddKeywordModal()">
+                <i class="bi bi-plus-circle"></i> 添加关键词
+            </button>
+        </div>
+    </div>
+
+    <!-- 关键词列表 -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">关键词列表</h5>
+                </div>
+                <div class="card-body">
+                    {% if keywords %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>关键词</th>
+                                    <th>分类</th>
+                                    <th>关联网站</th>
+                                    <th>状态</th>
+                                    <th>创建时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for keyword in keywords %}
+                                <tr>
+                                    <td>
+                                        <span class="badge bg-primary">{{ keyword.keyword }}</span>
+                                    </td>
+                                    <td>
+                                        {% if keyword.category %}
+                                        <span class="badge bg-secondary">{{ keyword.category }}</span>
+                                        {% else %}
+                                        <span class="text-muted">未分类</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% for website in websites %}
+                                            {% if website.id == keyword.website_id %}
+                                                {{ website.name }}
+                                            {% endif %}
+                                        {% endfor %}
+                                    </td>
+                                    <td>
+                                        {% if keyword.is_active %}
+                                        <span class="badge bg-success">启用</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">禁用</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ keyword.created_at.strftime('%Y-%m-%d %H:%M') if keyword.created_at else '-' }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="editKeyword({{ keyword.id }})">
+                                            <i class="bi bi-pencil"></i> 编辑
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteKeyword({{ keyword.id }})">
+                                            <i class="bi bi-trash"></i> 删除
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-search text-muted" style="font-size: 3rem;"></i>
+                        <h4 class="text-muted mt-3">暂无关键词</h4>
+                        <p class="text-muted">添加关键词来筛选感兴趣的内容</p>
+                        <button class="btn btn-primary" onclick="showAddKeywordModal()">
+                            <i class="bi bi-plus-circle"></i> 添加第一个关键词
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加关键词模态框 -->
+<div class="modal fade" id="addKeywordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">添加关键词</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addKeywordForm">
+                    <div class="mb-3">
+                        <label for="keyword" class="form-label">关键词 *</label>
+                        <input type="text" class="form-control" id="keyword" required 
+                               placeholder="例如：人工智能">
+                    </div>
+                    <div class="mb-3">
+                        <label for="category" class="form-label">分类</label>
+                        <input type="text" class="form-control" id="category"
+                               placeholder="例如：科技、产品、新闻">
+                    </div>
+                    <div class="mb-3">
+                        <label for="websiteId" class="form-label">关联网站 *</label>
+                        <select class="form-select" id="websiteId" required>
+                            <option value="">请选择网站</option>
+                            {% for website in websites %}
+                            <option value="{{ website.id }}">{{ website.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="isActive" checked>
+                            <label class="form-check-label" for="isActive">
+                                立即启用监控
+                            </label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitKeyword()">添加关键词</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showAddKeywordModal() {
+    new bootstrap.Modal(document.getElementById('addKeywordModal')).show();
+}
+
+function submitKeyword() {
+    const data = {
+        keyword: document.getElementById('keyword').value,
+        category: document.getElementById('category').value,
+        website_id: document.getElementById('websiteId').value,
+        is_active: document.getElementById('isActive').checked
+    };
+
+    if (!data.keyword || !data.website_id) {
+        showAlert('请填写所有必填字段', 'danger');
+        return;
+    }
+
+    fetch('/keywords/add', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showAlert(result.message, 'success');
+            bootstrap.Modal.getInstance(document.getElementById('addKeywordModal')).hide();
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            showAlert(result.message, 'danger');
+        }
+    })
+    .catch(error => {
+        showAlert('操作失败：' + error.message, 'danger');
+    });
+}
+
+function deleteKeyword(id) {
+    if (confirm('确定要删除这个关键词吗？')) {
+        fetch(`/keywords/${id}/delete`, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                showAlert(result.message, 'success');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                showAlert(result.message, 'danger');
+            }
+        })
+        .catch(error => {
+            showAlert('删除失败：' + error.message, 'danger');
+        });
+    }
+}
+
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.top = '20px';
+    alertDiv.style.right = '20px';
+    alertDiv.style.zIndex = '9999';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 3000);
+}
+</script>
+{% endblock %} 

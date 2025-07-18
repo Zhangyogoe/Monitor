@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+
+{% block title %}内容存档 - 智能资讯助手{% endblock %}
+
+{% block page_title %}
+<i class="fas fa-archive text-primary"></i>
+内容存档
+{% endblock %}
+
+{% block page_actions %}
+<a href="{{ url_for('index') }}" class="btn btn-outline-primary">
+    <i class="fas fa-arrow-left"></i>
+    返回首页
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- 筛选工具栏 -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-4">
+                        <label class="form-label">存档日期</label>
+                        <select class="form-select" id="dateFilter">
+                            <option value="">所有日期</option>
+                            {% for date in archive_dates %}
+                            <option value="{{ date }}" {% if date.strftime('%Y-%m-%d') == selected_date %}selected{% endif %}>
+                                {{ date.strftime('%Y-%m-%d') }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">来源网站</label>
+                        <select class="form-select" id="sourceFilter">
+                            <option value="">所有来源</option>
+                            {% for source in sources %}
+                            <option value="{{ source }}" {% if source == selected_source %}selected{% endif %}>
+                                {{ source }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">&nbsp;</label>
+                        <button class="btn btn-primary w-100" onclick="applyFilters()">
+                            <i class="fas fa-search"></i> 筛选
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 存档统计 -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card text-center bg-light">
+            <div class="card-body">
+                <h4 class="text-muted">{{ posts|length }}</h4>
+                <p class="text-muted mb-0">当前显示</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center bg-light">
+            <div class="card-body">
+                <h4 class="text-muted">{{ archive_dates|length }}</h4>
+                <p class="text-muted mb-0">存档天数</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center bg-light">
+            <div class="card-body">
+                <h4 class="text-muted">{{ sources|length }}</h4>
+                <p class="text-muted mb-0">来源网站</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 存档内容列表 -->
+<div class="row" id="archiveContainer">
+    {% for post in posts %}
+    <div class="col-12 mb-4">
+        <div class="card archive-card h-100 shadow-sm">
+            <div class="card-body">
+                <!-- 存档标记 -->
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <span class="badge bg-secondary">
+                        <i class="fas fa-archive me-1"></i>
+                        存档于 {{ post.archive_date.strftime('%Y-%m-%d') if post.archive_date else '未知' }}
+                    </span>
+                    <span class="badge bg-info">{{ post.source_website }}</span>
+                </div>
+                
+                <!-- 标题 -->
+                <h5 class="card-title mb-3">
+                    <a href="{{ post.post_url }}" target="_blank" class="text-decoration-none">
+                        {{ post.title }}
+                        <i class="fas fa-external-link-alt text-muted ms-2" style="font-size: 0.8em;"></i>
+                    </a>
+                </h5>
+                
+                <!-- AI总结 -->
+                {% if post.ai_summary %}
+                <div class="mb-3">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="fas fa-robot text-primary me-2"></i>
+                        <span class="badge bg-primary">AI智能总结</span>
+                    </div>
+                    <p class="text-muted summary-text-archive">
+                        {{ post.ai_summary }}
+                    </p>
+                </div>
+                {% endif %}
+                
+                <!-- 原始内容预览 -->
+                {% if post.content %}
+                <div class="mb-3">
+                    <small class="text-muted">原文内容：</small>
+                    <p class="text-muted small">
+                        {{ post.content[:300] }}{% if post.content|length > 300 %}...{% endif %}
+                    </p>
+                </div>
+                {% endif %}
+                
+                <!-- 元信息 -->
+                <div class="row text-muted small">
+                    <div class="col-md-6">
+                        {% if post.author %}
+                        <i class="fas fa-user me-1"></i>{{ post.author }}
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <i class="fas fa-clock me-1"></i>
+                        {{ post.created_at.strftime('%Y-%m-%d %H:%M') if post.created_at else '-' }}
+                    </div>
+                </div>
+                
+                <!-- 关键词标签 -->
+                {% if post.matched_keywords %}
+                <div class="mt-3">
+                    {% for keyword in post.matched_keywords %}
+                    <span class="badge bg-light text-dark me-1">{{ keyword }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                <!-- 操作按钮 -->
+                <div class="mt-3 text-end">
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteArchive({{ post.id }})">
+                        <i class="fas fa-trash"></i> 永久删除
+                    </button>
+                    <button class="btn btn-sm btn-outline-success" onclick="restoreFromArchive({{ post.id }})">
+                        <i class="fas fa-undo"></i> 恢复
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- 空状态 -->
+{% if not posts %}
+<div class="text-center py-5">
+    <i class="fas fa-archive text-muted" style="font-size: 4rem;"></i>
+    <h4 class="text-muted mt-3">暂无存档内容</h4>
+    <p class="text-muted">
+        {% if selected_date or selected_source %}
+        当前筛选条件下没有存档内容，请尝试其他筛选条件
+        {% else %}
+        还没有存档任何内容
+        {% endif %}
+    </p>
+    <div class="mt-4">
+        <a href="{{ url_for('index') }}" class="btn btn-primary">
+            <i class="fas fa-home"></i> 返回首页
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<!-- 分页 -->
+{% if posts and posts|length >= 50 %}
+<div class="text-center mt-4">
+    <p class="text-muted">显示前50条存档内容，请使用筛选功能查看更多</p>
+</div>
+{% endif %}
+
+<style>
+.archive-card {
+    border: none;
+    border-left: 4px solid #6c757d;
+    transition: all 0.3s ease;
+}
+
+.archive-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+}
+
+.summary-text-archive {
+    background: #f8f9fa;
+    padding: 12px;
+    border-radius: 6px;
+    border-left: 3px solid #6c757d;
+    line-height: 1.5;
+    font-size: 0.95em;
+}
+
+.badge {
+    font-size: 0.8em;
+}
+</style>
+
+<script>
+// 应用筛选
+function applyFilters() {
+    const date = document.getElementById('dateFilter').value;
+    const source = document.getElementById('sourceFilter').value;
+    
+    const params = new URLSearchParams();
+    if (date) params.append('date', date);
+    if (source) params.append('source', source);
+    
+    window.location.href = '/archive?' + params.toString();
+}
+
+// 从存档恢复
+function restoreFromArchive(postId) {
+    if (confirm('确定要恢复这条内容吗？恢复后将重新显示在首页。')) {
+        fetch(`/posts/${postId}/restore`, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                showAlert('内容已恢复', 'success');
+                // 隐藏该条内容
+                const element = document.querySelector(`[onclick="restoreFromArchive(${postId})"]`).closest('.col-12');
+                element.style.opacity = '0.5';
+                element.style.pointerEvents = 'none';
+            } else {
+                showAlert('恢复失败：' + result.message, 'danger');
+            }
+        })
+        .catch(error => {
+            showAlert('操作失败：' + error.message, 'danger');
+        });
+    }
+}
+
+// 永久删除
+function deleteArchive(postId) {
+    if (confirm('⚠️ 警告：此操作将永久删除这条内容，无法恢复！\n\n确定要继续吗？')) {
+        fetch(`/posts/${postId}/delete`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                showAlert('内容已永久删除', 'success');
+                // 移除该条内容
+                const element = document.querySelector(`[onclick="deleteArchive(${postId})"]`).closest('.col-12');
+                element.remove();
+            } else {
+                showAlert('删除失败：' + result.message, 'danger');
+            }
+        })
+        .catch(error => {
+            showAlert('操作失败：' + error.message, 'danger');
+        });
+    }
+}
+
+// 显示提示信息
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.top = '20px';
+    alertDiv.style.right = '20px';
+    alertDiv.style.zIndex = '9999';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 3000);
+}
+</script>
+{% endblock %} 

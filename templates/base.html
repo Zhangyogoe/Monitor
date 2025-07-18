@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}飞书自动推送机器人{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.bootcdn.net/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .sidebar .nav-link {
+            color: rgba(255,255,255,0.8);
+            padding: 12px 20px;
+            margin: 2px 0;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            color: white;
+            background-color: rgba(255,255,255,0.1);
+        }
+        
+        .main-content {
+            background-color: #f8f9fa;
+            min-height: 100vh;
+        }
+        
+        .card {
+            border: none;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            transition: box-shadow 0.15s ease-in-out;
+        }
+        
+        .card:hover {
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        }
+        
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+        }
+        
+        .btn-floating {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            z-index: 1000;
+        }
+        
+        .stats-card {
+            background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
+            color: white;
+            border-radius: 15px;
+        }
+        
+        .stats-icon {
+            font-size: 2rem;
+            opacity: 0.8;
+        }
+        
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1055;
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- 侧边栏 -->
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <div class="text-center mb-4">
+                        <h4 class="text-white">
+                            <i class="fas fa-globe"></i>
+                            智能资讯
+                        </h4>
+                        <small class="text-white-50">内容聚合系统</small>
+                    </div>
+                    
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if request.endpoint == 'index' }}" href="{{ url_for('index') }}">
+                                <i class="fas fa-home me-2"></i>
+                                内容聚合
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if request.endpoint == 'archive_page' }}" href="{{ url_for('archive_page') }}">
+                                <i class="fas fa-archive me-2"></i>
+                                内容存档
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if request.endpoint == 'websites' }}" href="{{ url_for('websites') }}">
+                                <i class="fas fa-cog me-2"></i>
+                                网站管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if request.endpoint == 'keywords' }}" href="{{ url_for('keywords') }}">
+                                <i class="fas fa-tags me-2"></i>
+                                关键词管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if request.endpoint == 'tasks' }}" href="{{ url_for('tasks') }}">
+                                <i class="fas fa-clock me-2"></i>
+                                任务调度
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if request.endpoint == 'crawl_history' }}" href="{{ url_for('crawl_history') }}">
+                                <i class="fas fa-history me-2"></i>
+                                爬取历史
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if request.endpoint == 'data_management' }}" href="{{ url_for('data_management') }}">
+                                <i class="fas fa-database me-2"></i>
+                                数据管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if request.endpoint == 'logs' }}" href="{{ url_for('logs') }}">
+                                <i class="fas fa-file-alt me-2"></i>
+                                系统日志
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if request.endpoint == 'config_page' }}" href="{{ url_for('config_page') }}">
+                                <i class="fas fa-cog me-2"></i>
+                                系统配置
+                            </a>
+                        </li>
+                    </ul>
+                    
+                    <hr class="text-white-50 my-3">
+                    
+                    <div class="px-3">
+                        <h6 class="text-white-50 text-uppercase mb-2">快速操作</h6>
+                        <button class="btn btn-outline-light btn-sm w-100 mb-2" onclick="manualCrawl()">
+                            <i class="fas fa-play me-1"></i>
+                            立即爬取
+                        </button>
+                        <a href="/api/health" class="btn btn-outline-light btn-sm w-100" target="_blank">
+                            <i class="fas fa-heart-pulse me-1"></i>
+                            健康检查
+                        </a>
+                    </div>
+                </div>
+            </nav>
+            
+            <!-- 主要内容区域 -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 main-content">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">{% block page_title %}欢迎使用{% endblock %}</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <div class="btn-group me-2">
+                            {% block page_actions %}{% endblock %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 消息提示区域 -->
+                <div class="alert-container">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                </div>
+                
+                <!-- 页面内容 -->
+                <div class="container-fluid">
+                    {% block content %}{% endblock %}
+                </div>
+            </main>
+        </div>
+    </div>
+    
+    <!-- Toast 容器 -->
+    <div class="toast-container"></div>
+    
+    <!-- 浮动操作按钮 -->
+    <button class="btn btn-primary btn-floating" onclick="scrollToTop()" title="回到顶部">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+    
+    <!-- 模态框 -->
+    {% block modals %}{% endblock %}
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    
+    <script>
+        // 全局JavaScript函数
+        function showToast(message, type = 'info') {
+            const toastContainer = document.querySelector('.toast-container');
+            const toastId = 'toast-' + Date.now();
+            
+            const toastHtml = `
+                <div class="toast" id="${toastId}" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="toast-header">
+                        <i class="fas fa-${type === 'success' ? 'check-circle text-success' : type === 'error' ? 'exclamation-circle text-danger' : 'info-circle text-info'} me-2"></i>
+                        <strong class="me-auto">系统通知</strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                    </div>
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                </div>
+            `;
+            
+            toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+            const toast = new bootstrap.Toast(document.getElementById(toastId));
+            toast.show();
+            
+            // 自动清理
+            setTimeout(() => {
+                const element = document.getElementById(toastId);
+                if (element) element.remove();
+            }, 5000);
+        }
+        
+        function manualCrawl() {
+            if (confirm('确定要立即执行爬取任务吗？')) {
+                fetch('/crawl/manual', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast(`爬取完成！共获取 ${data.new_posts} 条新内容`, 'success');
+                        // 刷新页面数据
+                        setTimeout(() => location.reload(), 2000);
+                    } else {
+                        showToast('爬取失败：' + (data.message || '未知错误'), 'error');
+                    }
+                })
+                .catch(error => {
+                    showToast('请求失败：' + error.message, 'error');
+                });
+            }
+        }
+        
+        function scrollToTop() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+        // 自动隐藏警告框
+        setTimeout(() => {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(alert => {
+                if (!alert.classList.contains('alert-dismissible')) return;
+                setTimeout(() => {
+                    const bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                }, 5000);
+            });
+        }, 100);
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html> 

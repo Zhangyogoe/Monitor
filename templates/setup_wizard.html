@@ -1,0 +1,627 @@
+{% extends "base.html" %}
+
+{% block title %}快速设置向导 - 飞书自动推送机器人{% endblock %}
+
+{% block extra_css %}
+<style>
+.wizard-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.wizard-step {
+    display: none;
+    animation: fadeIn 0.5s;
+}
+
+.wizard-step.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.step-indicator {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 30px;
+}
+
+.step-indicator .step {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #e9ecef;
+    color: #6c757d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 10px;
+    font-weight: bold;
+    position: relative;
+}
+
+.step-indicator .step.active {
+    background-color: #007bff;
+    color: white;
+}
+
+.step-indicator .step.completed {
+    background-color: #28a745;
+    color: white;
+}
+
+.step-indicator .step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 100%;
+    width: 20px;
+    height: 2px;
+    background-color: #e9ecef;
+    transform: translateY(-50%);
+}
+
+.step-indicator .step.completed:not(:last-child)::after {
+    background-color: #28a745;
+}
+
+.example-box {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 15px;
+    margin: 15px 0;
+}
+
+.example-box h6 {
+    color: #495057;
+    margin-bottom: 10px;
+}
+
+.config-preview {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 15px;
+    font-family: monospace;
+    font-size: 14px;
+    white-space: pre-line;
+}
+</style>
+{% endblock %}
+
+{% block page_title %}
+<i class="fas fa-magic text-primary"></i>
+快速设置向导
+{% endblock %}
+
+{% block content %}
+<div class="wizard-container">
+    <!-- 步骤指示器 -->
+    <div class="step-indicator">
+        <div class="step active" data-step="1">1</div>
+        <div class="step" data-step="2">2</div>
+        <div class="step" data-step="3">3</div>
+        <div class="step" data-step="4">4</div>
+        <div class="step" data-step="5">5</div>
+    </div>
+
+    <!-- 步骤1: 欢迎 -->
+    <div class="wizard-step active" id="step-1">
+        <div class="text-center">
+            <h2>🎉 欢迎使用飞书自动推送机器人</h2>
+            <p class="lead">让我们用5个简单步骤来配置您的系统</p>
+            
+            <div class="row mt-4">
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-robot fa-3x text-primary mb-3"></i>
+                            <h5>智能监控</h5>
+                            <p>自动监控网站动态，精准捕获相关内容</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-paper-plane fa-3x text-success mb-3"></i>
+                            <h5>自动推送</h5>
+                            <p>实时推送到飞书群聊和多维表格</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-clock fa-3x text-warning mb-3"></i>
+                            <h5>定时任务</h5>
+                            <p>灵活的定时策略，24小时自动运行</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <button class="btn btn-primary btn-lg" onclick="nextStep()">
+                    开始配置 <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 步骤2: 飞书机器人配置 -->
+    <div class="wizard-step" id="step-2">
+        <h3><i class="fas fa-robot text-primary"></i> 配置飞书机器人</h3>
+        
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i>
+            <strong>说明：</strong>飞书机器人是推送消息的核心，必须正确配置才能接收推送。
+        </div>
+
+        <div class="example-box">
+            <h6><i class="fas fa-lightbulb text-warning"></i> 如何获取Webhook URL？</h6>
+            <ol>
+                <li>打开飞书群聊，点击右上角设置按钮</li>
+                <li>选择"群机器人" → "添加机器人"</li>
+                <li>选择"自定义机器人"</li>
+                <li>设置机器人名称：<code>内容推送助手</code></li>
+                <li>复制生成的Webhook URL</li>
+            </ol>
+        </div>
+
+        <form id="feishu-form">
+            <div class="mb-3">
+                <label for="webhook-url" class="form-label">
+                    <i class="fas fa-link"></i> Webhook URL <span class="text-danger">*</span>
+                </label>
+                <input type="url" class="form-control" id="webhook-url" 
+                       placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..."
+                       required>
+                <div class="form-text">这是飞书机器人的Webhook地址，必填项</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="webhook-secret" class="form-label">
+                    <i class="fas fa-key"></i> Webhook密钥 <span class="text-muted">(可选)</span>
+                </label>
+                <input type="text" class="form-control" id="webhook-secret" 
+                       placeholder="如果开启了签名验证，请填入密钥">
+                <div class="form-text">如果创建机器人时开启了签名验证，请填入密钥</div>
+            </div>
+
+            <div class="mb-3">
+                <button type="button" class="btn btn-outline-primary" onclick="testWebhook()">
+                    <i class="fas fa-vial"></i> 测试连接
+                </button>
+                <small class="text-muted ms-2">点击测试机器人是否配置正确</small>
+            </div>
+        </form>
+
+        <div class="d-flex justify-content-between mt-4">
+            <button class="btn btn-outline-secondary" onclick="prevStep()">
+                <i class="fas fa-arrow-left"></i> 上一步
+            </button>
+            <button class="btn btn-primary" onclick="nextStep()" id="step2-next" disabled>
+                下一步 <i class="fas fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- 步骤3: 监控网站配置 -->
+    <div class="wizard-step" id="step-3">
+        <h3><i class="fas fa-globe text-success"></i> 配置监控网站</h3>
+        
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i>
+            <strong>说明：</strong>选择要监控的网站类型，系统会自动配置最佳的爬取策略。
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card website-type-card" data-type="product" onclick="selectWebsiteType('product')">
+                    <div class="card-body text-center">
+                        <i class="fas fa-box fa-3x text-primary mb-3"></i>
+                        <h5>产品网站</h5>
+                        <p>监控产品动态、版本更新、用户反馈</p>
+                        <small class="text-muted">推荐：WeCreate、GitHub等</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card website-type-card" data-type="social" onclick="selectWebsiteType('social')">
+                    <div class="card-body text-center">
+                        <i class="fas fa-users fa-3x text-info mb-3"></i>
+                        <h5>社交媒体</h5>
+                        <p>监控微博、知乎、小红书等平台</p>
+                        <small class="text-muted">推荐：微博、知乎等</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="website-config" class="mt-4" style="display: none;">
+            <h5>网站详细配置</h5>
+            <form id="website-form">
+                <div class="mb-3">
+                    <label for="website-name" class="form-label">网站名称</label>
+                    <input type="text" class="form-control" id="website-name" placeholder="例如：WeCreate官网" required>
+                </div>
+                <div class="mb-3">
+                    <label for="website-url" class="form-label">网站地址</label>
+                    <input type="url" class="form-control" id="website-url" placeholder="https://www.example.com" required>
+                </div>
+            </form>
+        </div>
+
+        <div class="d-flex justify-content-between mt-4">
+            <button class="btn btn-outline-secondary" onclick="prevStep()">
+                <i class="fas fa-arrow-left"></i> 上一步
+            </button>
+            <button class="btn btn-primary" onclick="nextStep()" id="step3-next" disabled>
+                下一步 <i class="fas fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- 步骤4: 关键词配置 -->
+    <div class="wizard-step" id="step-4">
+        <h3><i class="fas fa-tags text-warning"></i> 设置监控关键词</h3>
+        
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i>
+            <strong>说明：</strong>设置要监控的关键词，系统将只推送包含这些关键词的内容。
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">选择预设关键词类型</label>
+            <div class="row" id="keyword-categories">
+                <!-- 动态生成关键词分类 -->
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label for="custom-keywords" class="form-label">自定义关键词</label>
+            <textarea class="form-control" id="custom-keywords" rows="3" 
+                      placeholder="输入自定义关键词，每行一个&#10;例如：&#10;人工智能&#10;机器学习&#10;深度学习"></textarea>
+            <div class="form-text">每行输入一个关键词</div>
+        </div>
+
+        <div class="example-box">
+            <h6><i class="fas fa-lightbulb text-warning"></i> 关键词建议</h6>
+            <p>为了获得更精准的结果，建议：</p>
+            <ul>
+                <li>使用具体的词汇，避免过于宽泛</li>
+                <li>包含品牌名、产品名</li>
+                <li>添加行业相关术语</li>
+                <li>考虑同义词和变体</li>
+            </ul>
+        </div>
+
+        <div class="d-flex justify-content-between mt-4">
+            <button class="btn btn-outline-secondary" onclick="prevStep()">
+                <i class="fas fa-arrow-left"></i> 上一步
+            </button>
+            <button class="btn btn-primary" onclick="nextStep()">
+                下一步 <i class="fas fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- 步骤5: 完成配置 -->
+    <div class="wizard-step" id="step-5">
+        <h3><i class="fas fa-check-circle text-success"></i> 配置完成</h3>
+        
+        <div class="alert alert-success">
+            <i class="fas fa-check-circle"></i>
+            <strong>恭喜！</strong>您已成功完成基础配置。系统将根据您的设置开始工作。
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <h5>配置摘要</h5>
+                <div class="config-preview" id="config-summary">
+                    <!-- 动态生成配置摘要 -->
+                </div>
+            </div>
+            <div class="col-md-6">
+                <h5>下一步操作</h5>
+                <div class="list-group">
+                    <div class="list-group-item">
+                        <i class="fas fa-play text-success"></i>
+                        <strong>立即测试</strong> - 手动触发爬取任务
+                    </div>
+                    <div class="list-group-item">
+                        <i class="fas fa-clock text-primary"></i>
+                        <strong>设置定时任务</strong> - 配置自动爬取计划
+                    </div>
+                    <div class="list-group-item">
+                        <i class="fas fa-chart-line text-info"></i>
+                        <strong>查看仪表板</strong> - 监控系统运行状态
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center mt-4">
+            <button class="btn btn-success btn-lg" onclick="finishWizard()">
+                <i class="fas fa-rocket"></i> 完成设置并开始使用
+            </button>
+        </div>
+
+        <div class="mt-3 text-center">
+            <small class="text-muted">您可以随时在设置页面修改这些配置</small>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentStep = 1;
+let wizardData = {
+    feishu: {},
+    website: {},
+    keywords: []
+};
+
+function nextStep() {
+    if (validateCurrentStep()) {
+        const steps = document.querySelectorAll('.wizard-step');
+        const indicators = document.querySelectorAll('.step-indicator .step');
+        
+        // 隐藏当前步骤
+        steps[currentStep - 1].classList.remove('active');
+        indicators[currentStep - 1].classList.remove('active');
+        indicators[currentStep - 1].classList.add('completed');
+        
+        // 显示下一步骤
+        currentStep++;
+        steps[currentStep - 1].classList.add('active');
+        indicators[currentStep - 1].classList.add('active');
+        
+        // 初始化步骤特定内容
+        initializeStep(currentStep);
+    }
+}
+
+function prevStep() {
+    if (currentStep > 1) {
+        const steps = document.querySelectorAll('.wizard-step');
+        const indicators = document.querySelectorAll('.step-indicator .step');
+        
+        // 隐藏当前步骤
+        steps[currentStep - 1].classList.remove('active');
+        indicators[currentStep - 1].classList.remove('active');
+        
+        // 显示上一步骤
+        currentStep--;
+        steps[currentStep - 1].classList.add('active');
+        indicators[currentStep - 1].classList.remove('completed');
+        indicators[currentStep - 1].classList.add('active');
+    }
+}
+
+function validateCurrentStep() {
+    switch (currentStep) {
+        case 1:
+            return true;
+        case 2:
+            return validateFeishuConfig();
+        case 3:
+            return validateWebsiteConfig();
+        case 4:
+            return validateKeywordConfig();
+        case 5:
+            return true;
+        default:
+            return false;
+    }
+}
+
+function validateFeishuConfig() {
+    const webhookUrl = document.getElementById('webhook-url').value;
+    if (!webhookUrl) {
+        showToast('请填入Webhook URL', 'error');
+        return false;
+    }
+    
+    wizardData.feishu = {
+        webhook_url: webhookUrl,
+        webhook_secret: document.getElementById('webhook-secret').value
+    };
+    
+    return true;
+}
+
+function validateWebsiteConfig() {
+    const websiteName = document.getElementById('website-name').value;
+    const websiteUrl = document.getElementById('website-url').value;
+    
+    if (!websiteName || !websiteUrl) {
+        showToast('请完整填写网站信息', 'error');
+        return false;
+    }
+    
+    return true;
+}
+
+function validateKeywordConfig() {
+    // 收集关键词
+    const customKeywords = document.getElementById('custom-keywords').value
+        .split('\n')
+        .map(k => k.trim())
+        .filter(k => k.length > 0);
+    
+    const selectedCategories = Array.from(document.querySelectorAll('.keyword-category.active'))
+        .map(el => el.dataset.keywords.split(','))
+        .flat();
+    
+    wizardData.keywords = [...selectedCategories, ...customKeywords];
+    
+    if (wizardData.keywords.length === 0) {
+        showToast('请至少设置一个关键词', 'error');
+        return false;
+    }
+    
+    return true;
+}
+
+function testWebhook() {
+    const webhookUrl = document.getElementById('webhook-url').value;
+    const webhookSecret = document.getElementById('webhook-secret').value;
+    
+    if (!webhookUrl) {
+        showToast('请先填入Webhook URL', 'error');
+        return;
+    }
+    
+    // 发送测试消息
+    fetch('/api/test-webhook', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            webhook_url: webhookUrl,
+            webhook_secret: webhookSecret
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('连接测试成功！', 'success');
+            document.getElementById('step2-next').disabled = false;
+        } else {
+            showToast('连接测试失败：' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        showToast('测试失败：' + error.message, 'error');
+    });
+}
+
+function selectWebsiteType(type) {
+    // 移除所有选中状态
+    document.querySelectorAll('.website-type-card').forEach(card => {
+        card.classList.remove('border-primary', 'bg-light');
+    });
+    
+    // 选中当前卡片
+    const selectedCard = document.querySelector(`[data-type="${type}"]`);
+    selectedCard.classList.add('border-primary', 'bg-light');
+    
+    // 显示网站配置表单
+    document.getElementById('website-config').style.display = 'block';
+    document.getElementById('step3-next').disabled = false;
+    
+    // 根据类型预填一些信息
+    if (type === 'product') {
+        document.getElementById('website-name').placeholder = '例如：WeCreate官网';
+        document.getElementById('website-url').placeholder = 'https://www.wecreat.com';
+        wizardData.website.type = 'product';
+    } else if (type === 'social') {
+        document.getElementById('website-name').placeholder = '例如：微博';
+        document.getElementById('website-url').placeholder = 'https://weibo.com';
+        wizardData.website.type = 'social';
+    }
+}
+
+function initializeStep(step) {
+    switch (step) {
+        case 4:
+            initializeKeywordCategories();
+            break;
+        case 5:
+            generateConfigSummary();
+            break;
+    }
+}
+
+function initializeKeywordCategories() {
+    const categories = {
+        '产品相关': ['产品更新', '新功能', '版本发布', '产品动态'],
+        '技术相关': ['技术更新', 'API', '开发', '集成'],
+        '用户反馈': ['用户反馈', '评价', '建议', '问题反馈'],
+        '竞品分析': ['竞品', '对比', '市场分析', '行业动态']
+    };
+    
+    const container = document.getElementById('keyword-categories');
+    container.innerHTML = '';
+    
+    Object.entries(categories).forEach(([category, keywords]) => {
+        const col = document.createElement('div');
+        col.className = 'col-md-6 mb-3';
+        
+        col.innerHTML = `
+            <div class="card keyword-category" data-keywords="${keywords.join(',')}" onclick="toggleKeywordCategory(this)">
+                <div class="card-body text-center">
+                    <h6>${category}</h6>
+                    <small class="text-muted">${keywords.join(', ')}</small>
+                </div>
+            </div>
+        `;
+        
+        container.appendChild(col);
+    });
+}
+
+function toggleKeywordCategory(element) {
+    element.classList.toggle('active');
+    element.classList.toggle('border-primary');
+    element.classList.toggle('bg-light');
+}
+
+function generateConfigSummary() {
+    const summary = `
+飞书机器人配置：
+- Webhook URL: ${wizardData.feishu.webhook_url}
+- 签名验证: ${wizardData.feishu.webhook_secret ? '已启用' : '未启用'}
+
+监控网站配置：
+- 网站名称: ${wizardData.website.name || '未设置'}
+- 网站地址: ${wizardData.website.url || '未设置'}
+- 网站类型: ${wizardData.website.type || '未设置'}
+
+关键词配置：
+- 关键词数量: ${wizardData.keywords.length}
+- 关键词列表: ${wizardData.keywords.join(', ')}
+    `;
+    
+    document.getElementById('config-summary').textContent = summary;
+}
+
+function finishWizard() {
+    // 提交配置
+    fetch('/api/setup-wizard/complete', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(wizardData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('配置保存成功！即将跳转到仪表板...', 'success');
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 2000);
+        } else {
+            showToast('保存配置失败：' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        showToast('保存失败：' + error.message, 'error');
+    });
+}
+
+// 页面加载时检查是否有已保存的配置
+document.addEventListener('DOMContentLoaded', function() {
+    // 可以在这里加载已有的配置
+});
+</script>
+{% endblock %} 

@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+
+{% block title %}内容聚合 - 智能资讯助手{% endblock %}
+
+{% block page_title %}
+<i class="fas fa-globe text-primary"></i>
+智能资讯聚合
+{% endblock %}
+
+{% block page_actions %}
+<button class="btn btn-success" onclick="manualCrawl()">
+    <i class="fas fa-sync"></i>
+    更新内容
+</button>
+<button class="btn btn-outline-primary" onclick="archiveOldPosts()">
+    <i class="fas fa-archive"></i>
+    存档旧内容
+</button>
+{% endblock %}
+
+{% block content %}
+<!-- 今日统计 -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card stats-card text-white" style="background: linear-gradient(45deg, #667eea, #764ba2);">
+            <div class="card-body text-center">
+                <h3 class="mb-0">{{ stats.today_posts }}</h3>
+                <p class="mb-0">今日新内容</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card stats-card text-white" style="background: linear-gradient(45deg, #f093fb, #f5576c);">
+            <div class="card-body text-center">
+                <h3 class="mb-0">{{ stats.total_posts }}</h3>
+                <p class="mb-0">总内容数</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card stats-card text-white" style="background: linear-gradient(45deg, #4facfe, #00f2fe);">
+            <div class="card-body text-center">
+                <h3 class="mb-0">{{ stats.active_sources }}</h3>
+                <p class="mb-0">活跃来源</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 筛选工具栏 -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-3">
+                        <select class="form-select" id="sourceFilter">
+                            <option value="">所有来源</option>
+                            {% for source in sources %}
+                            <option value="{{ source }}">{{ source }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="dateFilter">
+                            <option value="today">今天</option>
+                            <option value="week">本周</option>
+                            <option value="month">本月</option>
+                            <option value="all">全部</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <input type="text" class="form-control" id="searchKeyword" placeholder="搜索关键词...">
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-primary w-100" onclick="applyFilters()">
+                            <i class="fas fa-search"></i> 筛选
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 内容列表 -->
+<div class="row" id="contentContainer">
+    {% for post in posts %}
+    <div class="col-12 mb-4 content-item" data-source="{{ post.source_website }}" data-date="{{ post.created_at.strftime('%Y-%m-%d') }}">
+        <div class="card content-card h-100 shadow-sm">
+            <div class="card-body">
+                <!-- 标题 -->
+                <h5 class="card-title mb-3">
+                    <a href="{{ post.post_url }}" target="_blank" class="text-decoration-none">
+                        {{ post.title }}
+                        <i class="fas fa-external-link-alt text-muted ms-2" style="font-size: 0.8em;"></i>
+                    </a>
+                </h5>
+                
+                <!-- AI总结 -->
+                <div class="mb-3">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="fas fa-robot text-primary me-2"></i>
+                        <span class="badge bg-primary">AI智能总结</span>
+                    </div>
+                    <p class="text-muted summary-text">
+                        {% if post.ai_summary %}
+                            {{ post.ai_summary }}
+                        {% else %}
+                            {{ post.content[:200] }}{% if post.content|length > 200 %}...{% endif %}
+                        {% endif %}
+                    </p>
+                </div>
+                
+                <!-- 元信息 -->
+                <div class="row text-muted small">
+                    <div class="col-md-6">
+                        <i class="fas fa-globe me-1"></i>
+                        <span class="source-badge">{{ post.source_website }}</span>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <i class="fas fa-clock me-1"></i>
+                        {{ post.created_at.strftime('%Y-%m-%d %H:%M') }}
+                    </div>
+                </div>
+                
+                <!-- 关键词标签 -->
+                {% if post.matched_keywords %}
+                <div class="mt-3">
+                    {% for keyword in post.matched_keywords %}
+                    <span class="badge bg-secondary me-1">{{ keyword }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                <!-- 操作按钮 -->
+                <div class="mt-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        {% if post.author %}
+                        <span class="text-muted small">
+                            <i class="fas fa-user me-1"></i>{{ post.author }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-outline-primary" onclick="markAsRead({{ post.id }})">
+                            <i class="fas fa-check"></i> 标记已读
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="archivePost({{ post.id }})">
+                            <i class="fas fa-archive"></i> 存档
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- 空状态 -->
+{% if not posts %}
+<div class="text-center py-5">
+    <i class="fas fa-newspaper text-muted" style="font-size: 4rem;"></i>
+    <h4 class="text-muted mt-3">暂无内容</h4>
+    <p class="text-muted">请先配置网站和关键词，然后执行爬取任务</p>
+    <div class="mt-4">
+        <a href="{{ url_for('websites') }}" class="btn btn-primary me-2">
+            <i class="fas fa-plus"></i> 添加网站
+        </a>
+        <a href="{{ url_for('keywords') }}" class="btn btn-outline-primary">
+            <i class="fas fa-tags"></i> 配置关键词
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<!-- 加载更多 -->
+{% if posts and posts|length >= 20 %}
+<div class="text-center mt-4">
+    <button class="btn btn-outline-primary" onclick="loadMore()">
+        <i class="fas fa-chevron-down"></i> 加载更多
+    </button>
+</div>
+{% endif %}
+
+<style>
+.content-card {
+    border: none;
+    border-left: 4px solid #007bff;
+    transition: all 0.3s ease;
+}
+
+.content-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+}
+
+.summary-text {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 3px solid #28a745;
+    line-height: 1.6;
+}
+
+.source-badge {
+    background: #e9ecef;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.85em;
+}
+
+.stats-card {
+    border: none;
+    border-radius: 15px;
+    transition: transform 0.3s ease;
+}
+
+.stats-card:hover {
+    transform: translateY(-3px);
+}
+
+.content-item {
+    animation: fadeInUp 0.5s ease-in-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+</style>
+
+<script>
+// 手动爬取
+function manualCrawl() {
+    showAlert('开始更新内容...', 'info');
+    
+    fetch('/crawl/manual', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showAlert('内容更新成功！', 'success');
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            showAlert('内容更新失败：' + result.message, 'danger');
+        }
+    })
+    .catch(error => {
+        showAlert('操作失败：' + error.message, 'danger');
+    });
+}
+
+// 存档旧内容
+function archiveOldPosts() {
+    if (confirm('确定要存档7天前的内容吗？')) {
+        fetch('/api/archive-old-posts', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                showAlert(`成功存档 ${result.count} 条内容`, 'success');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                showAlert('存档失败：' + result.message, 'danger');
+            }
+        });
+    }
+}
+
+// 应用筛选
+function applyFilters() {
+    const source = document.getElementById('sourceFilter').value;
+    const date = document.getElementById('dateFilter').value;
+    const keyword = document.getElementById('searchKeyword').value;
+    
+    const params = new URLSearchParams();
+    if (source) params.append('source', source);
+    if (date) params.append('date', date);
+    if (keyword) params.append('keyword', keyword);
+    
+    window.location.href = '/?' + params.toString();
+}
+
+// 标记已读
+function markAsRead(postId) {
+    fetch(`/posts/${postId}/mark-read`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showAlert('已标记为已读', 'success');
+        }
+    });
+}
+
+// 存档单个帖子
+function archivePost(postId) {
+    fetch(`/posts/${postId}/archive`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showAlert('已存档', 'success');
+            // 隐藏该条内容
+            const element = document.querySelector(`[onclick="archivePost(${postId})"]`).closest('.content-item');
+            element.style.opacity = '0.5';
+            element.style.pointerEvents = 'none';
+        }
+    });
+}
+
+// 显示提示信息
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.top = '20px';
+    alertDiv.style.right = '20px';
+    alertDiv.style.zIndex = '9999';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 3000);
+}
+
+// 搜索框回车事件
+document.getElementById('searchKeyword').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        applyFilters();
+    }
+});
+</script>
+{% endblock %} 

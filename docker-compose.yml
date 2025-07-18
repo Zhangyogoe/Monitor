@@ -1,0 +1,98 @@
+version: '3.8'
+
+services:
+  feishu-bot:
+    build: .
+    container_name: feishu-auto-push
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./.env:/app/.env
+      - ./feishu_bot.db:/app/feishu_bot.db
+    networks:
+      - feishu-network
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  redis:
+    image: redis:7-alpine
+    container_name: feishu-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - feishu-network
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # 可选：添加数据库服务（如果不使用SQLite）
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: feishu-postgres
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_DB: feishu_bot
+  #     POSTGRES_USER: feishu_user
+  #     POSTGRES_PASSWORD: your_password_here
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   networks:
+  #     - feishu-network
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U feishu_user -d feishu_bot"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+
+  # 可选：添加监控服务
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   container_name: feishu-prometheus
+  #   restart: unless-stopped
+  #   ports:
+  #     - "9090:9090"
+  #   volumes:
+  #     - ./prometheus.yml:/etc/prometheus/prometheus.yml
+  #     - prometheus_data:/prometheus
+  #   networks:
+  #     - feishu-network
+
+  # grafana:
+  #   image: grafana/grafana:latest
+  #   container_name: feishu-grafana
+  #   restart: unless-stopped
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     - GF_SECURITY_ADMIN_PASSWORD=admin123
+  #   volumes:
+  #     - grafana_data:/var/lib/grafana
+  #   networks:
+  #     - feishu-network
+
+networks:
+  feishu-network:
+    driver: bridge
+
+volumes:
+  redis_data:
+  # postgres_data:
+  # prometheus_data:
+  # grafana_data: 

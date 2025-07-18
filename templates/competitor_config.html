@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>监控配置 - 竞品动态监控</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            font-size: 1.8em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+        
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+        
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+        }
+        
+        .form-section {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        
+        .form-title {
+            font-size: 1.3em;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #2c3e50;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .config-type-section {
+            display: none;
+        }
+        
+        .config-type-section.active {
+            display: block;
+        }
+        
+        .configs-list {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        
+        .config-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid #3498db;
+            position: relative;
+        }
+        
+        .config-card.inactive {
+            border-left-color: #95a5a6;
+            opacity: 0.7;
+        }
+        
+        .config-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .config-name {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .config-type {
+            background: #3498db;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: 500;
+        }
+        
+        .config-details {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 15px;
+        }
+        
+        .config-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #7f8c8d;
+        }
+        
+        .error,
+        .success {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .help-text {
+            font-size: 0.85em;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .config-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
+            }
+            
+            .config-actions {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 头部 -->
+        <header class="header">
+            <h1>⚙️ 监控配置</h1>
+            <a href="/" class="btn btn-secondary">← 返回主页</a>
+        </header>
+        
+        <!-- 错误/成功提示 -->
+        <div id="message" style="display: none;"></div>
+        
+        <!-- 添加配置表单 -->
+        <section class="form-section">
+            <h2 class="form-title">➕ 添加监控配置</h2>
+            
+            <form id="configForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="configName">配置名称 *</label>
+                        <input type="text" id="configName" name="name" required 
+                               placeholder="例如：kickstarter_cubiio">
+                        <div class="help-text">给这个监控配置起一个便于识别的名称</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="configType">配置类型 *</label>
+                        <select id="configType" name="config_type" required onchange="toggleConfigType()">
+                            <option value="">请选择配置类型</option>
+                            <option value="account">账号链接</option>
+                            <option value="keyword">网站关键词</option>
+                        </select>
+                        <div class="help-text">选择监控模式：账号链接或网站关键词</div>
+                    </div>
+                </div>
+                
+                <!-- 账号链接配置 -->
+                <div id="accountConfig" class="config-type-section">
+                    <div class="form-group">
+                        <label for="accountUrl">账号链接 *</label>
+                        <input type="url" id="accountUrl" name="account_url" 
+                               placeholder="https://www.kickstarter.com/profile/cubiio/created">
+                        <div class="help-text">监控指定账号的发布动态（支持Kickstarter、Reddit用户页面）</div>
+                    </div>
+                </div>
+                
+                <!-- 网站关键词配置 -->
+                <div id="keywordConfig" class="config-type-section">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="websiteUrl">网站链接 *</label>
+                            <input type="url" id="websiteUrl" name="website_url" 
+                                   placeholder="https://www.reddit.com/r/WeCreat/">
+                            <div class="help-text">要监控的网站或子版块链接</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="keywords">关键词</label>
+                            <input type="text" id="keywords" name="keywords" 
+                                   placeholder="laser/product/update">
+                            <div class="help-text">用 / 分隔多个关键词，留空则监控所有24小时内帖子</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="text-align: center; margin-top: 30px;">
+                    <button type="submit" class="btn btn-success">
+                        💾 保存配置
+                    </button>
+                </div>
+            </form>
+        </section>
+        
+        <!-- 现有配置列表 -->
+        <section class="configs-list">
+            <h2 class="form-title">📋 现有配置</h2>
+            
+            {% if configs %}
+                {% for config in configs %}
+                <div class="config-card {% if not config.is_active %}inactive{% endif %}">
+                    <div class="config-header">
+                        <div class="config-name">{{ config.name }}</div>
+                        <span class="config-type">
+                            {% if config.config_type == 'account' %}账号链接
+                            {% else %}网站关键词{% endif %}
+                        </span>
+                    </div>
+                    
+                    <div class="config-details">
+                        {% if config.config_type == 'account' %}
+                            <strong>账号：</strong>{{ config.account_url }}
+                        {% else %}
+                            <strong>网站：</strong>{{ config.website_url }}<br>
+                            <strong>关键词：</strong>{{ config.keywords or '所有内容' }}
+                        {% endif %}
+                        <br>
+                        <strong>状态：</strong>
+                        {% if config.is_active %}
+                            <span style="color: #27ae60;">✅ 启用</span>
+                        {% else %}
+                            <span style="color: #e74c3c;">❌ 禁用</span>
+                        {% endif %}
+                        {% if config.last_crawl_time %}
+                            | <strong>上次爬取：</strong>{{ config.last_crawl_time[:16] }}
+                        {% endif %}
+                    </div>
+                    
+                    <div class="config-actions">
+                                                 <button class="btn btn-sm btn-primary" onclick="editConfig('{{ config.id }}')">
+                             ✏️ 编辑
+                         </button>
+                         {% if config.is_active %}
+                             <button class="btn btn-sm btn-secondary" onclick="toggleStatus('{{ config.id }}', false)">
+                                 ⏸️ 禁用
+                             </button>
+                         {% else %}
+                             <button class="btn btn-sm btn-success" onclick="toggleStatus('{{ config.id }}', true)">
+                                 ▶️ 启用
+                             </button>
+                         {% endif %}
+                         <button class="btn btn-sm btn-danger" onclick="deleteConfig('{{ config.id }}')">
+                             🗑️ 删除
+                         </button>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <h3>暂无监控配置</h3>
+                    <p>请添加第一个监控配置开始使用</p>
+                </div>
+            {% endif %}
+        </section>
+    </div>
+    
+    <script>
+        function toggleConfigType() {
+            const configType = document.getElementById('configType').value;
+            const accountConfig = document.getElementById('accountConfig');
+            const keywordConfig = document.getElementById('keywordConfig');
+            
+            // 隐藏所有配置区域
+            accountConfig.classList.remove('active');
+            keywordConfig.classList.remove('active');
+            
+            // 显示对应的配置区域
+            if (configType === 'account') {
+                accountConfig.classList.add('active');
+            } else if (configType === 'keyword') {
+                keywordConfig.classList.add('active');
+            }
+        }
+        
+        function showMessage(message, type = 'success') {
+            const messageDiv = document.getElementById('message');
+            messageDiv.className = type;
+            messageDiv.textContent = message;
+            messageDiv.style.display = 'block';
+            
+            // 3秒后自动隐藏
+            setTimeout(() => {
+                messageDiv.style.display = 'none';
+            }, 3000);
+        }
+        
+        // 提交表单
+        document.getElementById('configForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData);
+            
+            fetch('/api/config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    showMessage('✅ 配置添加成功！', 'success');
+                    this.reset();
+                    toggleConfigType();
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showMessage('❌ ' + result.message, 'error');
+                }
+            })
+            .catch(error => {
+                showMessage('❌ 请求失败：' + error.message, 'error');
+            });
+        });
+        
+        function editConfig(configId) {
+            // 简化版编辑（实际项目中可以做成弹窗表单）
+            const newName = prompt('请输入新的配置名称：');
+            if (newName) {
+                fetch(`/api/config/${configId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name: newName })
+                })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        showMessage('✅ 配置更新成功！', 'success');
+                        setTimeout(() => location.reload(), 1000);
+                    } else {
+                        showMessage('❌ ' + result.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    showMessage('❌ 更新失败：' + error.message, 'error');
+                });
+            }
+        }
+        
+        function toggleStatus(configId, isActive) {
+            const action = isActive ? '启用' : '禁用';
+            
+            if (confirm(`确定要${action}这个配置吗？`)) {
+                fetch(`/api/config/${configId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ is_active: isActive })
+                })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        showMessage(`✅ 配置${action}成功！`, 'success');
+                        setTimeout(() => location.reload(), 1000);
+                    } else {
+                        showMessage('❌ ' + result.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    showMessage('❌ 操作失败：' + error.message, 'error');
+                });
+            }
+        }
+        
+        function deleteConfig(configId) {
+            if (confirm('确定要删除这个配置吗？此操作不可恢复！')) {
+                fetch(`/api/config/${configId}`, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        showMessage('✅ 配置删除成功！', 'success');
+                        setTimeout(() => location.reload(), 1000);
+                    } else {
+                        showMessage('❌ ' + result.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    showMessage('❌ 删除失败：' + error.message, 'error');
+                });
+            }
+        }
+    </script>
+</body>
+</html> 

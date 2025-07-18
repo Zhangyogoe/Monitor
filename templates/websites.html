@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+
+{% block title %}网站管理{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h2>🌐 网站管理</h2>
+            <p class="text-muted">管理要监控的网站和配置</p>
+        </div>
+        <div class="col-md-6 text-end">
+            <button class="btn btn-primary" onclick="showAddWebsiteModal()">
+                <i class="bi bi-plus-circle"></i> 添加网站
+            </button>
+        </div>
+    </div>
+
+    <!-- 网站列表 -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">监控网站列表</h5>
+                </div>
+                <div class="card-body">
+                    {% if websites %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>网站名称</th>
+                                    <th>URL</th>
+                                    <th>爬虫类型</th>
+                                    <th>状态</th>
+                                    <th>创建时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for website in websites %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ website.name }}</strong>
+                                    </td>
+                                    <td>
+                                        <a href="{{ website.url }}" target="_blank" class="text-decoration-none">
+                                            {{ website.url[:50] }}{% if website.url|length > 50 %}...{% endif %}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ website.crawler_type }}</span>
+                                    </td>
+                                    <td>
+                                        {% if website.is_active %}
+                                        <span class="badge bg-success">启用</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">禁用</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ website.created_at.strftime('%Y-%m-%d %H:%M') if website.created_at else '-' }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="editWebsite({{ website.id }})">
+                                            <i class="bi bi-pencil"></i> 编辑
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteWebsite({{ website.id }})">
+                                            <i class="bi bi-trash"></i> 删除
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-globe2 text-muted" style="font-size: 3rem;"></i>
+                        <h4 class="text-muted mt-3">暂无监控网站</h4>
+                        <p class="text-muted">点击上方"添加网站"按钮开始配置</p>
+                        <button class="btn btn-primary" onclick="showAddWebsiteModal()">
+                            <i class="bi bi-plus-circle"></i> 添加第一个网站
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加网站模态框 -->
+<div class="modal fade" id="addWebsiteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">添加监控网站</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addWebsiteForm">
+                    <div class="mb-3">
+                        <label for="websiteName" class="form-label">网站名称 *</label>
+                        <input type="text" class="form-control" id="websiteName" required 
+                               placeholder="例如：科技资讯网">
+                    </div>
+                    <div class="mb-3">
+                        <label for="websiteUrl" class="form-label">网站URL *</label>
+                        <input type="url" class="form-control" id="websiteUrl" required
+                               placeholder="https://example.com">
+                    </div>
+                    <div class="mb-3">
+                        <label for="websiteType" class="form-label">网站类型 *</label>
+                        <select class="form-select" id="websiteType" required onchange="onWebsiteTypeChange()">
+                            <option value="">请选择网站类型</option>
+                            <option value="官网">官网</option>
+                            <option value="论坛">论坛</option>
+                            <option value="视频">视频</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="crawlerType" class="form-label">爬虫类型 *</label>
+                        <select class="form-select" id="crawlerType" required>
+                            <option value="">请选择爬虫类型</option>
+                            <option value="product">产品网站</option>
+                            <option value="weibo">微博</option>
+                            <option value="youtube">YouTube</option>
+                            <option value="generic">通用爬虫</option>
+                        </select>
+                    </div>
+                    
+                    <!-- 关键词配置（仅官网/论坛显示） -->
+                    <div class="mb-3" id="keywordConfig" style="display: none;">
+                        <label for="crawlKeywords" class="form-label">关键词</label>
+                        <textarea class="form-control" id="crawlKeywords" rows="3" 
+                                placeholder="输入关键词，多个关键词用 / 分隔，例如：laser/new/产品更新"></textarea>
+                        <div class="form-text">多个关键词用 "/" 分隔，不填时默认爬取当日所有内容</div>
+                    </div>
+                    
+                    <!-- 时间配置（仅视频显示） -->
+                    <div class="mb-3" id="timeConfig" style="display: none;">
+                        <label for="timeRangeStart" class="form-label">时间范围开始</label>
+                        <input type="date" class="form-control" id="timeRangeStart" 
+                               placeholder="选择开始时间">
+                        <div class="form-text">将爬取从该时间到当前时间的所有内容</div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="isActive" checked>
+                            <label class="form-check-label" for="isActive">
+                                立即启用监控
+                            </label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitWebsite()">添加网站</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showAddWebsiteModal() {
+    new bootstrap.Modal(document.getElementById('addWebsiteModal')).show();
+}
+
+function onWebsiteTypeChange() {
+    const websiteType = document.getElementById('websiteType').value;
+    const keywordConfig = document.getElementById('keywordConfig');
+    const timeConfig = document.getElementById('timeConfig');
+    
+    if (websiteType === '官网' || websiteType === '论坛') {
+        keywordConfig.style.display = 'block';
+        timeConfig.style.display = 'none';
+    } else if (websiteType === '视频') {
+        keywordConfig.style.display = 'none';
+        timeConfig.style.display = 'block';
+    } else {
+        keywordConfig.style.display = 'none';
+        timeConfig.style.display = 'none';
+    }
+}
+
+function submitWebsite() {
+    const form = document.getElementById('addWebsiteForm');
+    const data = {
+        name: document.getElementById('websiteName').value,
+        url: document.getElementById('websiteUrl').value,
+        website_type: document.getElementById('websiteType').value,
+        crawler_type: document.getElementById('crawlerType').value,
+        crawl_keywords: document.getElementById('crawlKeywords').value,
+        time_range_start: document.getElementById('timeRangeStart').value,
+        is_active: document.getElementById('isActive').checked
+    };
+
+    if (!data.name || !data.url || !data.crawler_type) {
+        showAlert('请填写所有必填字段', 'danger');
+        return;
+    }
+
+    fetch('/websites/add', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showAlert(result.message, 'success');
+            bootstrap.Modal.getInstance(document.getElementById('addWebsiteModal')).hide();
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            showAlert(result.message, 'danger');
+        }
+    })
+    .catch(error => {
+        showAlert('操作失败：' + error.message, 'danger');
+    });
+}
+
+function deleteWebsite(id) {
+    if (confirm('确定要删除这个网站吗？')) {
+        fetch(`/websites/${id}/delete`, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                showAlert(result.message, 'success');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                showAlert(result.message, 'danger');
+            }
+        })
+        .catch(error => {
+            showAlert('删除失败：' + error.message, 'danger');
+        });
+    }
+}
+
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.top = '20px';
+    alertDiv.style.right = '20px';
+    alertDiv.style.zIndex = '9999';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 3000);
+}
+</script>
+{% endblock %} 
