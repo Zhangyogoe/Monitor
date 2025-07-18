@@ -47,8 +47,8 @@
 
 1. **克隆项目**
 ```bash
-git clone https://github.com/your-username/competitor-monitor.git
-cd competitor-monitor
+git clone https://github.com/Zhangyogoe/Monitor.git
+cd Monitor
 ```
 
 2. **安装依赖**
@@ -59,7 +59,7 @@ pip install -r requirements.txt
 3. **配置环境（可选）**
 ```bash
 # 复制环境配置文件
-cp .env.example .env
+cp env.example .env
 
 # 编辑配置文件，设置API密钥等
 vim .env
@@ -190,7 +190,7 @@ grep -i error competitor_app.log
 
 ```bash
 # 克隆项目
-git clone https://github.com/your-username/competitor-monitor.git
+git clone https://github.com/Zhangyogoe/Monitor.git
 
 # 创建虚拟环境
 python -m venv venv
@@ -198,9 +198,8 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 
 # 安装开发依赖
 pip install -r requirements.txt
-pip install -r requirements-dev.txt  # 如果有开发依赖
 
-# 运行测试
+# 运行测试（如果有测试文件）
 python -m pytest tests/
 ```
 
@@ -221,7 +220,7 @@ python -m pytest tests/
 如果您在使用过程中遇到问题：
 
 1. 查看 [用户使用指南](用户使用指南.md)
-2. 搜索已有的 [Issues](https://github.com/your-username/competitor-monitor/issues)
+2. 搜索已有的 [Issues](https://github.com/Zhangyogoe/Monitor/issues)
 3. 创建新的 Issue 描述问题
 4. 联系维护者获取技术支持
 
