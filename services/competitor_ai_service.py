@@ -13,7 +13,7 @@ class CompetitorAIService:
     
     def __init__(self):
         # 使用文档指定的API key
-        self.api_key = "AIzaSyBvGjWPijmwETZoPgrcPIuggo1xU0Qzyjg"
+        self.api_key = "xxxxxxxx自行添加"
         self.model = "gemini-1.5-flash"
         
         # 文档指定的AI提示词
