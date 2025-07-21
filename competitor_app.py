@@ -208,13 +208,160 @@ def viewer_page():
         logger.error(f"查看页面加载失败: {e}")
         return render_template('competitor_viewer.html', sessions=[], error=str(e))
 
+@app.route('/api/feishu/test', methods=['POST'])
+def test_feishu_webhook():
+    """测试飞书webhook连接"""
+    try:
+        success = monitor_service.test_feishu_webhook()
+        return jsonify({
+            'success': success,
+            'message': '飞书webhook测试成功' if success else '飞书webhook测试失败'
+        })
+    except Exception as e:
+        logger.error(f"测试飞书webhook失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        })
+
+@app.route('/api/feishu/webhook', methods=['POST'])
+def update_feishu_webhook():
+    """更新飞书webhook地址"""
+    try:
+        data = request.get_json()
+        webhook_url = data.get('webhook_url')
+        
+        if not webhook_url:
+            return jsonify({
+                'success': False,
+                'message': 'webhook地址不能为空'
+            })
+        
+        monitor_service.update_feishu_webhook(webhook_url)
+        return jsonify({
+            'success': True,
+            'message': '飞书webhook地址已更新'
+        })
+    except Exception as e:
+        logger.error(f"更新飞书webhook失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        })
+
+@app.route('/api/feishu/send-test', methods=['POST'])
+def send_test_feishu_message():
+    """发送测试飞书消息"""
+    try:
+        # 获取最近的一些帖子作为测试数据
+        recent_posts = CompetitorPost.query.order_by(
+            CompetitorPost.created_at.desc()
+        ).limit(5).all()
+        
+        if recent_posts:
+            post_dicts = [post.to_dict() for post in recent_posts]
+            success = monitor_service.feishu_service.send_daily_summary(
+                post_dicts, 
+                "测试推送"
+            )
+        else:
+            # 没有数据时发送测试消息
+            success = monitor_service.test_feishu_webhook()
+        
+        return jsonify({
+            'success': success,
+            'message': '测试消息发送成功' if success else '测试消息发送失败'
+        })
+    except Exception as e:
+        logger.error(f"发送测试消息失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        })
+
+@app.route('/api/session/delete/<int:session_id>', methods=['DELETE'])
+def delete_crawl_session(session_id):
+    """删除爬取会话和相关记录"""
+    try:
+        result = monitor_service.delete_crawl_session(session_id)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"删除会话失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        })
+
+@app.route('/api/posts/delete', methods=['DELETE'])
+def delete_posts_by_urls():
+    """根据URL删除帖子记录"""
+    try:
+        data = request.get_json()
+        post_urls = data.get('post_urls', [])
+        
+        if not post_urls:
+            return jsonify({
+                'success': False,
+                'message': '请提供要删除的帖子URL列表'
+            })
+        
+        result = monitor_service.delete_posts_by_url(post_urls)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"删除帖子失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        })
+
+@app.route('/api/records/clear', methods=['DELETE'])
+def clear_old_records():
+    """清理老的监控记录"""
+    try:
+        data = request.get_json() or {}
+        days_before = data.get('days_before', 30)  # 默认清理30天前的记录
+        
+        result = monitor_service.clear_old_records(days_before)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"清理老记录失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        })
+
+@app.route('/api/session/<int:session_id>/posts')
+def get_session_posts(session_id):
+    """获取指定会话的所有帖子"""
+    try:
+        posts = monitor_service.get_session_posts(session_id)
+        return jsonify({
+            'success': True,
+            'posts': posts
+        })
+    except Exception as e:
+        logger.error(f"获取会话帖子失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        })
+
 # 定时任务
 def scheduled_crawl():
-    """定时爬取任务（每日10点）"""
+    """定时爬取任务（每日10点）- 有内容时推送飞书"""
     logger.info("🕘 执行定时竞品监控...")
     try:
-        result = monitor_service.execute_crawl_session("每日定时监控")
+        result = monitor_service.execute_scheduled_crawl()
         logger.info(f"定时监控完成: {result}")
+        
+        # 记录飞书推送状态
+        if result.get("feishu_sent"):
+            logger.info("📱 飞书消息已推送")
+        elif result.get("processed_posts", 0) > 0:
+            logger.warning("⚠️ 有新内容但飞书推送失败")
+        else:
+            logger.info("📱 无新内容，未推送飞书消息")
+            
     except Exception as e:
         logger.error(f"定时监控失败: {e}")
 

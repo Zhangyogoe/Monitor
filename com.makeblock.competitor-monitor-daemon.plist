@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.makeblock.competitor-monitor-daemon</string>
+    
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/makeblock/Desktop/work/feishu_bot/daemon_start.sh</string>
+        <string>start</string>
+    </array>
+    
+    <key>RunAtLoad</key>
+    <true/>
+    
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+        <key>Crashed</key>
+        <true/>
+    </dict>
+    
+    <key>StandardOutPath</key>
+    <string>/Users/makeblock/Desktop/work/feishu_bot/logs/daemon.log</string>
+    
+    <key>StandardErrorPath</key>
+    <string>/Users/makeblock/Desktop/work/feishu_bot/logs/daemon_error.log</string>
+    
+    <key>WorkingDirectory</key>
+    <string>/Users/makeblock/Desktop/work/feishu_bot</string>
+    
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>PYTHONPATH</key>
+        <string>/Users/makeblock/Desktop/work/feishu_bot</string>
+        <key>FLASK_ENV</key>
+        <string>production</string>
+    </dict>
+    
+    <key>ProcessType</key>
+    <string>Background</string>
+    
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+    
+    <key>StartInterval</key>
+    <integer>60</integer>
+</dict>
+</plist> 

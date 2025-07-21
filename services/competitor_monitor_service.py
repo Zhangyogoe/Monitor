@@ -9,6 +9,7 @@ from typing import List, Dict, Any, Optional
 from models.competitor_models import db, MonitorConfig, CrawlSession, CompetitorPost
 from crawlers.competitor_crawler import CompetitorCrawler
 from services.competitor_ai_service import CompetitorAIService
+from services.feishu_webhook_service import FeishuWebhookService
 from loguru import logger
 import hashlib
 
@@ -18,6 +19,7 @@ class CompetitorMonitorService:
     def __init__(self):
         self.crawler = CompetitorCrawler()
         self.ai_service = CompetitorAIService()
+        self.feishu_service = FeishuWebhookService()
     
     def execute_crawl_session(self, session_name: str = None) -> Dict[str, Any]:
         """执行一次完整的爬取会话"""
@@ -307,4 +309,192 @@ class CompetitorMonitorService:
             "recent_sessions": recent_sessions,
             "recent_posts": recent_posts,
             "ai_status": self.ai_service.get_summary_status()
-        } 
+        }
+    
+    def execute_scheduled_crawl(self) -> Dict[str, Any]:
+        """执行定时爬取任务（每日10点），有内容时推送飞书"""
+        logger.info("🕘 执行定时竞品监控...")
+        
+        try:
+            # 执行爬取会话
+            result = self.execute_crawl_session("每日定时监控")
+            
+            # 如果有新内容且爬取成功，发送飞书推送
+            if result.get("success") and result.get("processed_posts", 0) > 0:
+                logger.info("📱 准备发送飞书推送...")
+                
+                # 获取本次会话的帖子数据
+                session_id = result.get("session_id")
+                if session_id:
+                    posts = CompetitorPost.query.filter_by(session_id=session_id).all()
+                    post_dicts = [post.to_dict() for post in posts]
+                    
+                    # 发送飞书推送
+                    feishu_success = self.feishu_service.send_daily_summary(
+                        post_dicts, 
+                        "每日定时监控"
+                    )
+                    
+                    if feishu_success:
+                        logger.info("✅ 飞书推送发送成功")
+                        result["feishu_sent"] = True
+                    else:
+                        logger.warning("⚠️ 飞书推送发送失败")
+                        result["feishu_sent"] = False
+                else:
+                    logger.warning("⚠️ 无法获取会话ID，跳过飞书推送")
+                    result["feishu_sent"] = False
+            else:
+                logger.info("📱 没有新内容，跳过飞书推送")
+                result["feishu_sent"] = False
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"❌ 定时监控失败: {e}")
+            return {
+                "success": False,
+                "message": str(e),
+                "feishu_sent": False
+            }
+    
+    def test_feishu_webhook(self) -> bool:
+        """测试飞书webhook连接"""
+        return self.feishu_service.test_webhook()
+    
+    def update_feishu_webhook(self, webhook_url: str):
+        """更新飞书webhook地址"""
+        self.feishu_service.update_webhook_url(webhook_url)
+    
+    def delete_crawl_session(self, session_id: int) -> Dict[str, Any]:
+        """删除爬取会话和相关的所有帖子记录"""
+        try:
+            session = CrawlSession.query.get(session_id)
+            if not session:
+                return {"success": False, "message": "会话不存在"}
+            
+            session_name = session.session_name
+            
+            # 删除关联的帖子记录
+            posts_deleted = CompetitorPost.query.filter_by(session_id=session_id).delete()
+            
+            # 删除会话记录
+            db.session.delete(session)
+            db.session.commit()
+            
+            logger.info(f"✅ 删除爬取会话: {session_name}，删除帖子 {posts_deleted} 条")
+            
+            return {
+                "success": True,
+                "message": f"成功删除会话 '{session_name}' 和相关的 {posts_deleted} 条帖子记录",
+                "deleted_posts": posts_deleted
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ 删除爬取会话失败: {e}")
+            db.session.rollback()
+            
+            return {
+                "success": False,
+                "message": str(e)
+            }
+    
+    def delete_posts_by_url(self, post_urls: List[str]) -> Dict[str, Any]:
+        """根据URL删除特定帖子记录"""
+        try:
+            deleted_count = 0
+            
+            for url in post_urls:
+                posts = CompetitorPost.query.filter_by(post_url=url).all()
+                for post in posts:
+                    db.session.delete(post)
+                    deleted_count += 1
+            
+            db.session.commit()
+            
+            logger.info(f"✅ 删除帖子记录: {deleted_count} 条")
+            
+            return {
+                "success": True,
+                "message": f"成功删除 {deleted_count} 条帖子记录",
+                "deleted_count": deleted_count
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ 删除帖子记录失败: {e}")
+            db.session.rollback()
+            
+            return {
+                "success": False,
+                "message": str(e)
+            }
+    
+    def delete_posts_by_session_and_config(self, session_id: int, config_id: int) -> Dict[str, Any]:
+        """删除特定会话和配置的帖子记录"""
+        try:
+            deleted_count = CompetitorPost.query.filter_by(
+                session_id=session_id,
+                monitor_config_id=config_id
+            ).delete()
+            
+            db.session.commit()
+            
+            logger.info(f"✅ 删除特定配置的帖子记录: {deleted_count} 条")
+            
+            return {
+                "success": True,
+                "message": f"成功删除 {deleted_count} 条帖子记录",
+                "deleted_count": deleted_count
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ 删除帖子记录失败: {e}")
+            db.session.rollback()
+            
+            return {
+                "success": False,
+                "message": str(e)
+            }
+    
+    def clear_old_records(self, days_before: int = 30) -> Dict[str, Any]:
+        """清理指定天数前的老记录"""
+        try:
+            cutoff_date = datetime.now() - timedelta(days=days_before)
+            
+            # 删除老的帖子记录
+            posts_deleted = CompetitorPost.query.filter(
+                CompetitorPost.created_at < cutoff_date
+            ).delete()
+            
+            # 删除老的会话记录
+            sessions_deleted = CrawlSession.query.filter(
+                CrawlSession.crawl_time < cutoff_date
+            ).delete()
+            
+            db.session.commit()
+            
+            logger.info(f"✅ 清理老记录: 删除 {sessions_deleted} 个会话，{posts_deleted} 条帖子")
+            
+            return {
+                "success": True,
+                "message": f"成功清理 {days_before} 天前的记录：{sessions_deleted} 个会话，{posts_deleted} 条帖子",
+                "deleted_sessions": sessions_deleted,
+                "deleted_posts": posts_deleted
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ 清理老记录失败: {e}")
+            db.session.rollback()
+            
+            return {
+                "success": False,
+                "message": str(e)
+            }
+    
+    def get_session_posts(self, session_id: int) -> List[Dict[str, Any]]:
+        """获取指定会话的所有帖子"""
+        posts = CompetitorPost.query.filter_by(session_id=session_id).order_by(
+            CompetitorPost.created_at.desc()
+        ).all()
+        
+        return [post.to_dict() for post in posts] 

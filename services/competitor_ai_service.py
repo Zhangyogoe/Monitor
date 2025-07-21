@@ -5,6 +5,7 @@
 """
 
 import requests
+import os
 from typing import List, Dict, Any
 from loguru import logger
 
@@ -12,9 +13,9 @@ class CompetitorAIService:
     """竞品AI分析服务"""
     
     def __init__(self):
-        # 使用文档指定的API key
-        self.api_key = "xxxxxxxx自行添加"
-        self.model = "gemini-1.5-flash"
+        # 从数据库获取API配置
+        self.api_key = self._get_api_key()
+        self.model = self._get_model()
         
         # 优化的AI提示词 - 公众号推送风格
         self.system_prompt = """你是一个科技媒体编辑，专门整理竞品动态信息。请用公众号推送的简洁风格，按品牌分类整理产品动态和用户反馈。
@@ -41,19 +42,81 @@ class CompetitorAIService:
 
 请用这种简洁清晰的格式整理以下内容："""
     
-    def analyze_posts(self, posts: List[Dict[str, Any]]) -> str:
+    def _get_api_key(self) -> str:
+        """获取API密钥 - 优先从配置文件，然后环境变量，最后数据库"""
+        # 1. 优先从配置文件获取
+        try:
+            import config
+            if hasattr(config, 'GEMINI_API_KEY') and config.GEMINI_API_KEY != "your_gemini_api_key_here":
+                logger.info("✅ 从配置文件获取Gemini API密钥")
+                return config.GEMINI_API_KEY
+        except ImportError:
+            logger.debug("配置文件不存在，尝试其他方式")
+        
+        # 2. 从环境变量获取
+        api_key = os.getenv('GEMINI_API_KEY')
+        if api_key:
+            logger.info("✅ 从环境变量获取Gemini API密钥")
+            return api_key
+        
+        # 3. 从数据库获取
+        try:
+            from models.competitor_models import SystemSettings
+            setting = SystemSettings.query.filter_by(key='ai_api_key').first()
+            if setting and setting.value:
+                logger.info("✅ 从数据库获取Gemini API密钥")
+                return setting.value
+        except Exception as e:
+            logger.error(f"从数据库获取API密钥失败: {e}")
+        
+        # 4. 使用默认密钥（您提供的）
+        default_key = "AIzaSyBvGjWPijmwETZoPgrcPIuggo1xU0Qzyjg"
+        logger.info("✅ 使用默认Gemini API密钥")
+        return default_key
+    
+    def _get_model(self) -> str:
+        """获取AI模型配置"""
+        # 1. 优先从配置文件获取
+        try:
+            import config
+            if hasattr(config, 'GEMINI_MODEL'):
+                return config.GEMINI_MODEL
+        except ImportError:
+            pass
+        
+        # 2. 从环境变量获取
+        model = os.getenv('GEMINI_MODEL')
+        if model:
+            return model
+        
+        # 3. 从数据库获取
+        try:
+            from models.competitor_models import SystemSettings
+            setting = SystemSettings.query.filter_by(key='ai_model').first()
+            if setting and setting.value:
+                return setting.value
+        except Exception as e:
+            logger.error(f"从数据库获取AI模型配置失败: {e}")
+        
+        # 4. 使用默认模型
+        return "gemini-1.5-flash"
+
+    def analyze_posts(self, posts: List[Dict[str, Any]], custom_prompt: str = None) -> str:
         """分析竞品帖子，生成按品牌分类的总结"""
         if not posts:
             return "暂无新的竞品动态"
         
         try:
+            # 使用自定义提示词或默认提示词
+            prompt = custom_prompt or self.system_prompt
+            
             # 构造分析请求
             posts_text = self._format_posts_for_analysis(posts)
             
-            prompt = f"{self.system_prompt}\n\n以下是需要分析的帖子数据：\n\n{posts_text}\n\n请按品牌公司进行分类整理并输出分析结果："
+            full_prompt = f"{prompt}\n\n以下是需要分析的帖子数据：\n\n{posts_text}\n\n请按要求进行分析和整理："
             
             # 调用Gemini API
-            summary = self._call_gemini_api(prompt)
+            summary = self._call_gemini_api(full_prompt)
             
             if summary:
                 logger.info("✅ AI分析完成")

@@ -13,6 +13,7 @@
 - **定时爬取** - 每日10点自动执行，无需人工干预
 - **网页更新监控** - 智能检测网页内容变化，只报告更新部分
 - **开机自启动** - 电脑开机后自动运行，持续监控
+- **飞书自动推送** - 定时爬取发现新内容时自动推送至飞书群聊
 
 ### 🤖 AI智能分析
 - **品牌自动分类** - 基于Gemini AI的智能品牌识别
@@ -27,6 +28,7 @@
 - **只读模式** - 专门的只读查看页面，方便团队协作
 - **实时更新** - 数据实时展示，支持手动刷新
 - **局域网访问** - 支持多设备同时访问，团队协作更便捷
+- **数据管理** - 支持删除历史记录，清除后相同内容可重新推送
 
 ## 🚀 快速开始
 
@@ -245,6 +247,80 @@ DATABASE_URL=mysql://user:pass@localhost/competitor_db
 - 检查网络连接和网页可访问性
 - 查看应用日志获取详细信息
 
+### 🚀 新功能配置
+
+#### 飞书推送设置
+```bash
+# 1. 复制配置模板
+cp config.example.py config.py
+
+# 2. 编辑配置文件
+vim config.py
+# 添加以下内容：
+# GEMINI_API_KEY = "your_gemini_api_key_here"
+# FEISHU_WEBHOOK_URL = "your_feishu_webhook_url_here"
+
+# 3. 详细配置请参考
+cat 飞书推送设置指南.md
+```
+
+#### 开机自启动设置（macOS）
+```bash
+# 安装自启动服务
+chmod +x manage_autostart.sh
+./manage_autostart.sh install
+
+# 查看服务状态
+./manage_autostart.sh status
+
+# 卸载服务
+./manage_autostart.sh uninstall
+```
+
+#### 守护进程启动
+```bash
+# 使用守护进程方式启动（推荐）
+chmod +x daemon_start.sh
+./daemon_start.sh
+
+# 检查进程状态
+ps aux | grep competitor_app
+```
+
+#### 数据管理
+- **删除记录**：在Web界面的"最近监控结果"中点击🗑️删除按钮
+- **重新推送**：删除记录后，相同内容下次爬取时会重新推送
+- **清理数据**：可通过API接口批量清理历史数据
+
+### 📊 API接口
+
+#### 删除功能相关接口
+```bash
+# 删除指定爬取会话
+curl -X DELETE http://localhost:8080/api/session/delete/{session_id}
+
+# 批量删除帖子记录
+curl -X DELETE http://localhost:8080/api/posts/delete \
+  -H "Content-Type: application/json" \
+  -d '{"config_id": 1, "days": 7}'
+
+# 清理旧记录
+curl -X POST http://localhost:8080/api/records/clear \
+  -H "Content-Type: application/json" \
+  -d '{"days": 30}'
+```
+
+#### 飞书推送相关接口
+```bash
+# 测试飞书推送
+curl -X POST http://localhost:8080/api/feishu/test
+
+# 发送测试消息
+curl -X POST http://localhost:8080/api/feishu/send-test \
+  -H "Content-Type: application/json" \
+  -d '{"message": "测试消息"}'
+```
+
 ### 日志查看
 
 ```bash
@@ -253,6 +329,9 @@ tail -f competitor_app.log
 
 # 查看错误日志
 grep -i error competitor_app.log
+
+# 查看守护进程日志
+tail -f ~/Library/Logs/competitor-monitor-daemon.log
 ```
 
 ## 🤝 参与贡献
