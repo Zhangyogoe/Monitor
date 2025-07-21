@@ -1,0 +1,26 @@
+{
+  "websites": {
+    "1": {
+      "last_crawl_time": "2025-07-17T15:02:30.022868",
+      "last_successful_url": null,
+      "last_post_id": null,
+      "total_posts_crawled": 0,
+      "last_error": null,
+      "crawl_session_id": "crawl_1_1752735665",
+      "pages_processed": 0,
+      "keywords_found": []
+    },
+    "2": {
+      "last_crawl_time": "2025-07-17T15:02:30.604687",
+      "last_successful_url": null,
+      "last_post_id": null,
+      "total_posts_crawled": 0,
+      "last_error": null,
+      "crawl_session_id": "crawl_2_1752735750",
+      "pages_processed": 0,
+      "keywords_found": []
+    }
+  },
+  "last_global_crawl": "2025-07-17T15:02:30.604770",
+  "version": "1.0"
+}

@@ -32,14 +32,28 @@
 
 ### 方法一：直接访问（推荐）
 
-如果系统已经部署，您可以直接通过浏览器访问：
+如果系统已经部署(已与部署者处于同一局域网)，您可以直接通过浏览器访问：
 
 ```
 主控制台: http://your-server-ip:8080
 只读查看: http://your-server-ip:8080/viewer
 配置管理: http://your-server-ip:8080/config
 ```
+监控配置
+此处可以配置你想要监控的账号/论坛/网站等
+点击“监控配置”按钮 ——>> 进入监控配置页面【添加配置、管理现有配置】。现有配置下可以看到目前所有已配置监控的启用情况，支持启用、禁用、删除。
+<img width="1470" height="813" alt="6360d2ed00fb4af0733bb3e8052c2fe" src="https://github.com/user-attachments/assets/ffab28da-f91e-4f30-a10c-6ad6dc2e8120" />
 
+<img width="998" height="597" alt="9edbe302936c48a55e60875b07fc1cc" src="https://github.com/user-attachments/assets/01775b09-e3e9-4082-b1b7-53bb37ac871b" />
+
+添加配置
+在➕添加监控配置 模块下，填写配置名称、配置类型及链接🔗。填写完成后点击保存配置即可生效。
+手动爬取
+点击“手动爬取”按钮根据已配置的监控爬取24小时内的动态，耐心等待⌛️1min左右...
+⚠️爬取内容说明：爬取时会自动去重之前爬取过的内容。
+爬取结果页面点击“查看详情”可查看内容总结及原文链接。
+⚠️内容展示说明：爬取到的所有内容会由gemini ai 按公司品牌进行分类，同时总结提炼。
+<img width="1261" height="778" alt="a4560ec08c45ac3d9afabaf0d418993" src="https://github.com/user-attachments/assets/27641862-744a-42eb-a7c6-d42a0f47ab11" />
 ### 方法二：本地部署
 
 #### 环境要求
