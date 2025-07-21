@@ -288,8 +288,9 @@
                             <option value="">请选择配置类型</option>
                             <option value="account">账号链接</option>
                             <option value="keyword">网站关键词</option>
+                            <option value="webpage_update">网页更新</option>
                         </select>
-                        <div class="help-text">选择监控模式：账号链接或网站关键词</div>
+                        <div class="help-text">选择监控模式：账号链接、网站关键词或网页更新</div>
                     </div>
                 </div>
                 
@@ -322,6 +323,24 @@
                     </div>
                 </div>
                 
+                <!-- 网页更新配置 -->
+                <div id="webpageUpdateConfig" class="config-type-section">
+                    <div class="form-group">
+                        <label for="webpageUrl">网页链接 *</label>
+                        <input type="url" id="webpageUrl" name="webpage_url" 
+                               placeholder="https://lightburnsoftware.com/pages/news">
+                        <div class="help-text">要监控更新的网页链接（首次爬取所有内容，后续检测内容变化）</div>
+                    </div>
+                    <div class="help-text" style="background: #f8f9fa; padding: 15px; border-radius: 6px; margin-top: 10px;">
+                        <strong>💡 智能网页更新模式说明：</strong><br>
+                        • 首次配置会建立内容基线<br>
+                        • <strong>智能差异检测</strong>：只报告具体的更新部分<br>
+                        • <strong>链接内容抓取</strong>：自动爬取更新中的相关链接内容<br>
+                        • <strong>精准监控</strong>：过滤无关变化，专注有意义的更新<br>
+                        • 适合监控产品更新页面、新闻发布、重要公告等
+                    </div>
+                </div>
+                
                 <div style="text-align: center; margin-top: 30px;">
                     <button type="submit" class="btn btn-success">
                         💾 保存配置
@@ -340,17 +359,22 @@
                     <div class="config-header">
                         <div class="config-name">{{ config.name }}</div>
                         <span class="config-type">
-                            {% if config.config_type == 'account' %}账号链接
-                            {% else %}网站关键词{% endif %}
+                                                    {% if config.config_type == 'account' %}账号链接
+                        {% elif config.config_type == 'keyword' %}网站关键词
+                        {% else %}网页更新{% endif %}
                         </span>
                     </div>
                     
                     <div class="config-details">
                         {% if config.config_type == 'account' %}
                             <strong>账号：</strong>{{ config.account_url }}
-                        {% else %}
+                        {% elif config.config_type == 'keyword' %}
                             <strong>网站：</strong>{{ config.website_url }}<br>
                             <strong>关键词：</strong>{{ config.keywords or '所有内容' }}
+                        {% else %}
+                            <strong>监控网页：</strong>{{ config.webpage_url }}<br>
+                            <strong>模式：</strong>智能差异检测 + 链接内容抓取<br>
+                            <strong>状态：</strong>{{ '已建立基线，监控中' if config.content_hash else '等待首次初始化' }}
                         {% endif %}
                         <br>
                         <strong>状态：</strong>
@@ -397,16 +421,20 @@
             const configType = document.getElementById('configType').value;
             const accountConfig = document.getElementById('accountConfig');
             const keywordConfig = document.getElementById('keywordConfig');
+            const webpageUpdateConfig = document.getElementById('webpageUpdateConfig');
             
             // 隐藏所有配置区域
             accountConfig.classList.remove('active');
             keywordConfig.classList.remove('active');
+            webpageUpdateConfig.classList.remove('active');
             
             // 显示对应的配置区域
             if (configType === 'account') {
                 accountConfig.classList.add('active');
             } else if (configType === 'keyword') {
                 keywordConfig.classList.add('active');
+            } else if (configType === 'webpage_update') {
+                webpageUpdateConfig.classList.add('active');
             }
         }
         

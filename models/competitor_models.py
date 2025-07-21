@@ -20,11 +20,11 @@ class BaseModel(db.Model):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 class MonitorConfig(BaseModel):
-    """监控配置表 - 支持两种配置模式"""
+    """监控配置表 - 支持三种配置模式"""
     __tablename__ = 'monitor_configs'
     
     name = Column(String(100), nullable=False)  # 配置名称
-    config_type = Column(String(20), nullable=False)  # 配置类型：account/keyword
+    config_type = Column(String(20), nullable=False)  # 配置类型：account/keyword/webpage_update
     
     # 配置1：账号链接模式
     account_url = Column(String(500))  # 指定账号链接
@@ -32,6 +32,11 @@ class MonitorConfig(BaseModel):
     # 配置2：关键词模式  
     website_url = Column(String(500))  # 网站链接
     keywords = Column(Text)  # 关键词（用/分隔）
+    
+    # 配置3：网页更新模式
+    webpage_url = Column(String(500))  # 监控的网页链接
+    content_hash = Column(String(64))  # 网页内容的哈希值，用于检测更新
+    last_content = Column(Text)  # 上次的网页文本内容，用于差异对比
     
     is_active = Column(Boolean, default=True)  # 是否启用
     last_crawl_time = Column(DateTime)  # 上次爬取时间
@@ -47,6 +52,9 @@ class MonitorConfig(BaseModel):
             'account_url': self.account_url,
             'website_url': self.website_url,
             'keywords': self.keywords,
+            'webpage_url': self.webpage_url,
+            'content_hash': self.content_hash,
+            'last_content': self.last_content,
             'is_active': self.is_active,
             'last_crawl_time': self.last_crawl_time.isoformat() if self.last_crawl_time else None,
             'created_at': self.created_at.isoformat() if self.created_at else None

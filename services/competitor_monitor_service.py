@@ -194,6 +194,9 @@ class CompetitorMonitorService:
                 account_url=config_data.get('account_url'),
                 website_url=config_data.get('website_url'),
                 keywords=config_data.get('keywords'),
+                webpage_url=config_data.get('webpage_url'),
+                content_hash=None,  # 网页更新模式初始化为None，首次爬取时设置
+                last_content=None,  # 上次内容初始化为None
                 is_active=True
             )
             

@@ -107,6 +107,9 @@ def add_config():
         if config_data['config_type'] == 'keyword' and not config_data.get('website_url'):
             return jsonify({"success": False, "message": "关键词模式需要提供网站链接"})
         
+        if config_data['config_type'] == 'webpage_update' and not config_data.get('webpage_url'):
+            return jsonify({"success": False, "message": "网页更新模式需要提供网页链接"})
+        
         result = monitor_service.add_monitor_config(config_data)
         return jsonify(result)
         
@@ -135,6 +138,56 @@ def delete_config(config_id):
         logger.error(f"删除配置失败: {e}")
         return jsonify({"success": False, "message": str(e)})
 
+@app.route('/api/scheduler/status')
+def scheduler_status():
+    """获取定时任务状态"""
+    try:
+        jobs = scheduler.get_jobs()
+        job_info = []
+        
+        for job in jobs:
+            job_info.append({
+                'id': job.id,
+                'name': job.name or job.func.__name__,
+                'next_run_time': job.next_run_time.isoformat() if job.next_run_time else None,
+                'trigger': str(job.trigger),
+                'func_name': job.func.__name__
+            })
+        
+        return jsonify({
+            'success': True,
+            'scheduler_running': scheduler.running,
+            'jobs_count': len(jobs),
+            'jobs': job_info
+        })
+        
+    except Exception as e:
+        logger.error(f"获取调度器状态失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e),
+            'scheduler_running': False,
+            'jobs_count': 0,
+            'jobs': []
+        })
+
+@app.route('/api/scheduler/trigger', methods=['POST'])
+def trigger_scheduled_crawl():
+    """手动触发定时爬取任务"""
+    try:
+        logger.info("🔧 手动触发定时爬取任务")
+        scheduled_crawl()
+        return jsonify({
+            'success': True,
+            'message': '定时爬取任务已手动触发'
+        })
+    except Exception as e:
+        logger.error(f"手动触发定时任务失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        })
+
 @app.route('/api/stats')
 def get_stats():
     """获取统计信息"""
@@ -157,7 +210,7 @@ def viewer_page():
 
 # 定时任务
 def scheduled_crawl():
-    """定时爬取任务（每日9点）"""
+    """定时爬取任务（每日10点）"""
     logger.info("🕘 执行定时竞品监控...")
     try:
         result = monitor_service.execute_crawl_session("每日定时监控")
@@ -172,7 +225,7 @@ def init_database():
         
         # 初始化系统设置
         settings = [
-            ("crawl_schedule", "0 9 * * *", "每日9点定时爬取"),
+            ("crawl_schedule", "0 10 * * *", "每日10点定时爬取"),
             ("ai_api_key", "AIzaSyBvGjWPijmwETZoPgrcPIuggo1xU0Qzyjg", "Gemini API密钥"),
             ("ai_model", "gemini-1.5-flash", "AI模型")
         ]
@@ -212,30 +265,60 @@ def init_sample_configs():
             result = monitor_service.add_monitor_config(config_data)
             logger.info(f"添加示例配置: {result}")
 
+def init_scheduler():
+    """初始化调度器和定时任务"""
+    try:
+        # 配置调度器
+        scheduler.init_app(app)
+        scheduler.start()
+        logger.info("✅ 调度器已启动")
+        
+        # 添加定时任务（每日10点）
+        scheduler.add_job(
+            id='daily_crawl',
+            func=scheduled_crawl,
+            trigger='cron',
+            hour=10,
+            minute=0,
+            replace_existing=True
+        )
+        logger.info("✅ 定时任务已添加：每日10:00执行爬取")
+        
+        # 显示下次执行时间
+        jobs = scheduler.get_jobs()
+        for job in jobs:
+            if job.id == 'daily_crawl':
+                logger.info(f"📅 下次执行时间: {job.next_run_time}")
+                break
+                
+    except Exception as e:
+        logger.error(f"❌ 初始化调度器失败: {e}")
+        raise
+
 if __name__ == '__main__':
-    # 初始化
-    init_database()
-    init_sample_configs()
-    
-    # 配置调度器
-    scheduler.init_app(app)
-    scheduler.start()
-    
-    # 添加定时任务（每日9点）
-    scheduler.add_job(
-        id='daily_crawl',
-        func=scheduled_crawl,
-        trigger='cron',
-        hour=9,
-        minute=0,
-        replace_existing=True
-    )
-    
-    # 获取端口
-    port = int(os.environ.get('PORT', 8080))
-    
-    logger.info(f"🚀 竞品监控系统启动在端口 {port}")
-    logger.info(f"📱 访问地址: http://localhost:{port}")
-    logger.info(f"👀 只读查看: http://localhost:{port}/viewer")
-    
-    app.run(host='0.0.0.0', port=port, debug=True) 
+    try:
+        # 初始化
+        init_database()
+        init_sample_configs()
+        init_scheduler()
+        
+        # 获取端口
+        port = int(os.environ.get('PORT', 8080))
+        
+        logger.info(f"🚀 竞品监控系统启动在端口 {port}")
+        logger.info(f"📱 访问地址: http://localhost:{port}")
+        logger.info(f"👀 只读查看: http://localhost:{port}/viewer")
+        
+        # 生产模式运行，提高稳定性
+        app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
+        
+    except KeyboardInterrupt:
+        logger.info("🛑 收到停止信号，正在关闭应用...")
+        if scheduler.running:
+            scheduler.shutdown()
+        logger.info("✅ 应用已安全关闭")
+    except Exception as e:
+        logger.error(f"❌ 应用启动失败: {e}")
+        if scheduler.running:
+            scheduler.shutdown()
+        raise 

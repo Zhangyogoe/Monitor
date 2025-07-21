@@ -7,22 +7,26 @@
 ## ✨ 核心功能
 
 ### 🔍 智能监控
-- **多平台支持** - Reddit子版块、Kickstarter账号等主流平台
+- **多平台支持** - Reddit子版块、Kickstarter账号、网页更新等主流平台
 - **24小时数据范围** - 精确获取最新24小时内的竞品动态
 - **自动去重** - 智能过滤重复内容，确保数据质量
-- **定时爬取** - 每日9点自动执行，无需人工干预
+- **定时爬取** - 每日10点自动执行，无需人工干预
+- **网页更新监控** - 智能检测网页内容变化，只报告更新部分
+- **开机自启动** - 电脑开机后自动运行，持续监控
 
 ### 🤖 AI智能分析
 - **品牌自动分类** - 基于Gemini AI的智能品牌识别
-- **内容智能总结** - 提取关键信息，生成简洁摘要
+- **内容智能总结** - 提取关键信息，生成简洁摘要（公众号推送风格）
 - **趋势分析** - 识别热点话题和发展趋势
 - **竞品洞察** - 深度分析竞品策略和用户反馈
+- **智能格式优化** - 去除无意义字符，清晰易读的呈现格式
 
 ### 🌐 现代化界面
 - **Web管理界面** - 直观的可视化操作界面
 - **移动端适配** - 支持手机、平板等多设备访问
 - **只读模式** - 专门的只读查看页面，方便团队协作
 - **实时更新** - 数据实时展示，支持手动刷新
+- **局域网访问** - 支持多设备同时访问，团队协作更便捷
 
 ## 🚀 快速开始
 
@@ -73,6 +77,26 @@ python start_competitor.py
 5. **访问界面**
 访问 http://localhost:8080 开始使用
 
+### 开机自启动设置（macOS）
+
+系统支持开机自启动，确保电脑开机后自动运行：
+
+```bash
+# 安装开机自启动
+./manage_autostart.sh install
+
+# 查看状态
+./manage_autostart.sh status
+
+# 查看日志
+./manage_autostart.sh logs
+
+# 卸载自启动
+./manage_autostart.sh uninstall
+```
+
+详细说明请查看：[开机自启动使用说明](开机自启动使用说明.md)
+
 ## 📋 监控配置
 
 ### 支持的平台
@@ -81,11 +105,18 @@ python start_competitor.py
 - **子版块监控** - 监控特定Reddit子版块的新帖子
 - **关键词过滤** - 支持按关键词筛选相关内容
 - **用户数据** - 获取点赞数、评论数、作者信息等
+- **反爬虫绕过** - 智能绕过Reddit反爬虫机制
 
 #### Kickstarter监控
 - **账号监控** - 跟踪特定用户的项目更新
 - **项目分析** - 分析众筹项目的进展情况
 - **动态追踪** - 及时获取项目最新动态
+
+#### 网页更新监控
+- **智能差异检测** - 只报告网页内容的变化部分
+- **链接内容抓取** - 自动抓取更新中的相关链接内容
+- **内容哈希对比** - 基于内容哈希的精确变化检测
+- **增量更新** - 避免重复报告相同内容
 
 ### 配置示例
 
@@ -98,6 +129,12 @@ python start_competitor.py
    - 配置名称: `kickstarter_cubiio`
    - 目标URL: `https://www.kickstarter.com/profile/cubiio/created`
    - 关键词: 留空，获取所有更新
+
+3. **网页更新监控**
+   - 配置名称: `software_lightburn`
+   - 目标URL: `https://lightburnsoftware.com/blogs/news`
+   - 监控类型: 网页更新
+   - 功能: 智能检测网页内容变化，只报告更新部分
 
 ## 🛠️ 高级配置
 
@@ -112,17 +149,29 @@ GEMINI_API_KEY=your_api_key_here
 
 ### 定时任务配置
 
-默认每日9:00执行爬取，可在代码中修改：
+默认每日10:00执行爬取，可在代码中修改：
 
 ```python
 # 在competitor_app.py中修改
 scheduler.add_job(
     func=scheduled_crawl,
     trigger="cron",
-    hour=9,  # 修改小时
+    hour=10,  # 修改小时
     minute=0,
     id='daily_crawl'
 )
+```
+
+### 开机自启动配置
+
+系统支持macOS开机自启动，确保应用持续运行：
+
+```bash
+# 安装自启动服务
+./setup_autostart.sh
+
+# 管理自启动服务
+./manage_autostart.sh [install|uninstall|status|logs|start|stop|restart]
 ```
 
 ### 数据库配置
@@ -171,6 +220,16 @@ DATABASE_URL=mysql://user:pass@localhost/competitor_db
 - 确认服务正常启动
 - 检查端口8080是否被占用
 - 尝试清除浏览器缓存
+
+**Q: 开机自启动不工作？**
+- 检查LaunchAgent状态: `launchctl list | grep feishu`
+- 查看自启动日志: `./manage_autostart.sh logs`
+- 重新安装自启动: `./manage_autostart.sh install`
+
+**Q: 网页更新监控没有检测到变化？**
+- 确认网页确实有内容更新
+- 检查网络连接和网页可访问性
+- 查看应用日志获取详细信息
 
 ### 日志查看
 

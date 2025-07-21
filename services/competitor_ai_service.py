@@ -16,8 +16,30 @@ class CompetitorAIService:
         self.api_key = "AIzaSyBvGjWPijmwETZoPgrcPIuggo1xU0Qzyjg"
         self.model = "gemini-1.5-flash"
         
-        # 文档指定的AI提示词
-        self.system_prompt = """你是一个理工科资料整理分析专家，具备专业多国语言翻译能力，请按品牌公司进行分类，根据帖子输出各品牌公司的产品动态及用户反馈。用户反馈可整理在一起进行输出，输出格式为：标题、内容总结（翻译为中文）、所有涉及原文链接。目的是让阅读人员清晰、快速的了解相关公司产品动态与用户反馈。"""
+        # 优化的AI提示词 - 公众号推送风格
+        self.system_prompt = """你是一个科技媒体编辑，专门整理竞品动态信息。请用公众号推送的简洁风格，按品牌分类整理产品动态和用户反馈。
+
+输出要求：
+1. 完全避免使用markdown符号（如 # * ** [] 等）
+2. 用简洁的文字和表情符号分隔内容
+3. 每个品牌用一个简单标题，后跟产品动态和用户反馈
+4. 用"📢 产品动态"和"💬 用户反馈"来区分内容类型
+5. 每条信息用简短语言概括，避免冗长描述
+6. 在每段最后提供相关链接
+
+示例格式：
+🔥 LightBurn 软件
+
+📢 产品动态：
+发布2.0版本更新，修复显示问题
+
+💬 用户反馈：
+字体雕刻效果需要优化
+摄像头安装高度咨询较多
+
+🔗 相关链接：www.example.com
+
+请用这种简洁清晰的格式整理以下内容："""
     
     def analyze_posts(self, posts: List[Dict[str, Any]]) -> str:
         """分析竞品帖子，生成按品牌分类的总结"""
@@ -108,12 +130,13 @@ class CompetitorAIService:
             return ""
     
     def _fallback_summary(self, posts: List[Dict[str, Any]]) -> str:
-        """AI失败时的备用总结"""
+        """AI失败时的备用总结 - 公众号推送风格"""
         if not posts:
-            return "暂无竞品动态"
+            return "📭 暂无竞品动态"
         
         summary_parts = []
-        summary_parts.append(f"📊 **竞品动态汇总** (共{len(posts)}条)")
+        summary_parts.append(f"📊 竞品动态汇总")
+        summary_parts.append(f"本次共收集 {len(posts)} 条信息")
         summary_parts.append("")
         
         # 按平台分组
@@ -125,18 +148,24 @@ class CompetitorAIService:
             platforms[platform].append(post)
         
         for platform, platform_posts in platforms.items():
-            summary_parts.append(f"### {platform} ({len(platform_posts)}条)")
+            platform_emoji = "🌐" if platform == "网页更新" else "💬" if "Reddit" in platform else "🚀"
+            summary_parts.append(f"{platform_emoji} {platform}")
+            summary_parts.append(f"收集到 {len(platform_posts)} 条动态")
+            summary_parts.append("")
             
-            for post in platform_posts[:5]:  # 最多显示5条
-                title = post.get('title', '无标题')[:100]
+            for i, post in enumerate(platform_posts[:3], 1):  # 最多显示3条
+                title = post.get('title', '无标题')[:80]
                 author = post.get('author', '未知作者')
                 url = post.get('post_url', '')
                 
-                summary_parts.append(f"- **{title}**")
-                summary_parts.append(f"  作者: {author}")
+                summary_parts.append(f"{i}. {title}")
+                if author != '未知作者' and author != '网页监控':
+                    summary_parts.append(f"   来源：{author}")
                 if url:
-                    summary_parts.append(f"  链接: {url}")
+                    summary_parts.append(f"   🔗 {url}")
                 summary_parts.append("")
+        
+        summary_parts.append("📝 注：AI分析服务暂时不可用，以上为原始数据整理")
         
         return "\n".join(summary_parts)
     

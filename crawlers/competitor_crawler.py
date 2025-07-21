@@ -65,6 +65,9 @@ class CompetitorCrawler:
             # 关键词模式
             keywords = config['keywords'].split('/') if config['keywords'] else []
             posts = self.crawl_website_posts(config['website_url'], keywords)
+        elif config['config_type'] == 'webpage_update':
+            # 网页更新模式
+            posts = self.crawl_webpage_updates(config)
         
         # 过滤24小时内的内容
         recent_posts = []
@@ -916,4 +919,269 @@ class CompetitorCrawler:
             
         except Exception as e:
             logger.error(f"Reddit HTML解析失败: {e}")
-            return []  # 解析失败时默认包含 
+            return []
+    
+    def crawl_webpage_updates(self, config: dict) -> List[CompetitorPost]:
+        """网页更新监控模式 - 智能差异检测，只报告更新部分"""
+        posts = []
+        webpage_url = config.get('webpage_url')
+        stored_hash = config.get('content_hash')
+        last_content = config.get('last_content', '')
+        
+        if not webpage_url:
+            logger.warning("网页更新模式缺少webpage_url配置")
+            return posts
+        
+        try:
+            logger.info(f"🔍 智能检测网页更新: {webpage_url}")
+            
+            # 获取网页内容
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+            
+            response = self.session.get(webpage_url, headers=headers, timeout=30)
+            
+            if response.status_code != 200:
+                logger.warning(f"网页访问失败，状态码: {response.status_code}")
+                return posts
+            
+            # 提取并清理网页内容
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # 移除不相关的标签
+            for tag in soup(["script", "style", "nav", "footer", "header", "sidebar", "advertisement"]):
+                tag.decompose()
+            
+            # 获取清理后的文本内容
+            current_content = soup.get_text(separator='\n', strip=True)
+            
+            # 计算内容哈希
+            import hashlib
+            current_hash = hashlib.md5(current_content.encode('utf-8')).hexdigest()
+            
+            # 检查是否有更新
+            if stored_hash and current_hash == stored_hash:
+                logger.info("📋 网页内容无更新")
+                return posts
+            
+            # 提取页面标题
+            title = soup.find('title')
+            title_text = title.get_text(strip=True) if title else "网页更新"
+            
+            if not last_content:
+                # 首次爬取，记录全部内容
+                logger.success(f"🆕 首次爬取网页: {title_text}")
+                
+                post = CompetitorPost()
+                post.title = f"📋 {title_text} (首次建立监控)"
+                post.content = current_content[:2000] + "..." if len(current_content) > 2000 else current_content
+                post.author = "网页监控"
+                post.post_time = datetime.now()
+                post.post_url = webpage_url
+                post.platform = "网页更新"
+                post.likes_count = 0
+                post.comments_count = 0
+                
+                posts.append(post)
+                
+            else:
+                # 检测具体更新内容
+                logger.success(f"🆕 检测到网页更新，分析差异: {title_text}")
+                
+                # 获取更新的具体内容
+                updated_parts = self._extract_content_differences(last_content, current_content, soup)
+                
+                if updated_parts:
+                    # 检查更新部分是否包含链接，并爬取链接内容
+                    enriched_content = self._enrich_updates_with_links(updated_parts, webpage_url)
+                    
+                    post = CompetitorPost()
+                    post.title = f"🔄 {title_text} (内容更新)"
+                    post.content = enriched_content[:2000] + "..." if len(enriched_content) > 2000 else enriched_content
+                    post.author = "网页监控"
+                    post.post_time = datetime.now()
+                    post.post_url = webpage_url
+                    post.platform = "网页更新"
+                    post.likes_count = 0
+                    post.comments_count = 0
+                    
+                    posts.append(post)
+                    logger.success(f"📄 发现更新内容，长度: {len(enriched_content)} 字符")
+                else:
+                    logger.info("📋 虽然哈希值变化，但未发现明显的内容更新")
+            
+            # 更新数据库中的哈希值和内容
+            self._update_webpage_data(config['id'], current_hash, current_content)
+            
+            logger.success(f"✅ 智能网页更新监控完成，获取 {len(posts)} 条更新")
+            
+        except Exception as e:
+            logger.error(f"❌ 网页更新监控失败: {e}")
+        
+        return posts
+    
+    def _extract_content_differences(self, old_content: str, new_content: str, soup: BeautifulSoup) -> str:
+        """提取网页内容的具体差异部分"""
+        try:
+            import difflib
+            
+            # 按行分割内容进行对比
+            old_lines = old_content.split('\n')
+            new_lines = new_content.split('\n')
+            
+            # 使用difflib找出新增的行
+            differ = difflib.unified_diff(old_lines, new_lines, lineterm='', n=0)
+            diff_lines = list(differ)
+            
+            # 提取新增的内容行
+            added_lines = []
+            for line in diff_lines:
+                if line.startswith('+ ') or line.startswith('+'):
+                    clean_line = line[1:].strip() if line.startswith('+ ') else line[1:].strip()
+                    if clean_line and len(clean_line) > 3:  # 过滤掉太短的行
+                        added_lines.append(clean_line)
+            
+            if not added_lines:
+                # 如果没有明显的新增行，尝试找到变化的段落
+                added_lines = self._find_content_blocks_differences(old_content, new_content, soup)
+            
+            # 组合新增内容
+            if added_lines:
+                updated_content = '\n'.join(added_lines)
+                logger.info(f"📄 检测到 {len(added_lines)} 行新增内容")
+                return updated_content
+            else:
+                logger.info("📋 未检测到明显的内容差异")
+                return ""
+                
+        except Exception as e:
+            logger.error(f"内容差异分析失败: {e}")
+            return ""
+    
+    def _find_content_blocks_differences(self, old_content: str, new_content: str, soup: BeautifulSoup) -> List[str]:
+        """寻找内容块级别的差异"""
+        try:
+            # 尝试从HTML结构中提取新的内容块
+            # 查找常见的内容块标签
+            content_blocks = []
+            
+            for tag in soup.find_all(['article', 'section', 'div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6']):
+                block_text = tag.get_text(strip=True)
+                if block_text and len(block_text) > 20:  # 只考虑有足够内容的块
+                    # 检查这个块是否在旧内容中存在
+                    if block_text not in old_content:
+                        content_blocks.append(block_text)
+            
+            return content_blocks
+            
+        except Exception as e:
+            logger.debug(f"内容块差异分析失败: {e}")
+            return []
+    
+    def _enrich_updates_with_links(self, updated_content: str, base_url: str) -> str:
+        """检查更新内容中的链接并爬取链接内容"""
+        try:
+            import re
+            from urllib.parse import urljoin, urlparse
+            
+            enriched_content = f"🔄 **更新内容**:\n{updated_content}\n\n"
+            
+            # 提取链接（支持多种格式）
+            link_patterns = [
+                r'https?://[^\s<>"]+',  # 普通HTTP链接
+                r'www\.[^\s<>"]+',      # www开头的链接
+            ]
+            
+            found_links = set()
+            for pattern in link_patterns:
+                links = re.findall(pattern, updated_content, re.IGNORECASE)
+                for link in links:
+                    # 标准化链接
+                    if not link.startswith('http'):
+                        link = 'https://' + link
+                    
+                    # 验证链接是否有效
+                    try:
+                        parsed = urlparse(link)
+                        if parsed.netloc:
+                            found_links.add(link)
+                    except:
+                        continue
+            
+            if found_links:
+                logger.info(f"🔗 在更新内容中发现 {len(found_links)} 个链接，开始爬取")
+                
+                enriched_content += "🔗 **相关链接内容**:\n"
+                
+                for i, link in enumerate(list(found_links)[:3], 1):  # 最多处理3个链接
+                    try:
+                        logger.info(f"📎 爬取链接 {i}: {link}")
+                        
+                        # 爬取链接内容
+                        link_content = self._crawl_link_content(link)
+                        
+                        if link_content:
+                            enriched_content += f"\n**链接 {i}**: {link}\n"
+                            enriched_content += f"**内容摘要**: {link_content[:500]}{'...' if len(link_content) > 500 else ''}\n"
+                        else:
+                            enriched_content += f"\n**链接 {i}**: {link} (无法获取内容)\n"
+                            
+                    except Exception as e:
+                        logger.warning(f"爬取链接失败 {link}: {e}")
+                        enriched_content += f"\n**链接 {i}**: {link} (爬取失败)\n"
+                        continue
+            
+            return enriched_content
+            
+        except Exception as e:
+            logger.error(f"链接内容丰富化失败: {e}")
+            return updated_content
+    
+    def _crawl_link_content(self, url: str) -> str:
+        """爬取单个链接的内容"""
+        try:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+            
+            response = self.session.get(url, headers=headers, timeout=15)
+            
+            if response.status_code != 200:
+                return ""
+            
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # 移除不相关的标签
+            for tag in soup(["script", "style", "nav", "footer", "header", "sidebar", "advertisement"]):
+                tag.decompose()
+            
+            # 提取主要内容
+            content = soup.get_text(separator=' ', strip=True)
+            
+            # 清理和缩短内容
+            lines = content.split('\n')
+            meaningful_lines = [line.strip() for line in lines if line.strip() and len(line.strip()) > 10]
+            
+            return '\n'.join(meaningful_lines[:20])  # 最多20行
+            
+        except Exception as e:
+            logger.debug(f"链接内容爬取失败 {url}: {e}")
+            return ""
+    
+    def _update_webpage_data(self, config_id: int, new_hash: str, new_content: str):
+        """更新配置中的网页数据（哈希值和内容）"""
+        try:
+            from models.competitor_models import db, MonitorConfig
+            
+            config = MonitorConfig.query.get(config_id)
+            if config:
+                config.content_hash = new_hash
+                config.last_content = new_content
+                db.session.commit()
+                logger.debug(f"已更新配置 {config_id} 的网页数据")
+            
+        except Exception as e:
+            logger.error(f"更新网页数据失败: {e}") 

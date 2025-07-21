@@ -12,7 +12,7 @@ from datetime import datetime
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 try:
-    from competitor_app import app, init_database, init_sample_configs
+    from competitor_app import app, init_database, init_sample_configs, init_scheduler
     from loguru import logger
     
     def main():
@@ -29,6 +29,10 @@ try:
             print("🔧 检查示例配置...")
             init_sample_configs()
             
+            # 初始化调度器
+            print("⏰ 初始化定时任务...")
+            init_scheduler()
+            
             # 获取端口
             port = int(os.environ.get('PORT', 8080))
             
@@ -39,7 +43,7 @@ try:
             print(f"   监控配置   : http://localhost:{port}/config")
             print(f"   只读查看   : http://localhost:{port}/viewer")
             print("=" * 50)
-            print(f"⏰ 定时爬取: 每日 09:00")
+            print(f"⏰ 定时爬取: 每日 10:00")
             print(f"🤖 AI 引擎: Gemini 1.5 Flash")
             print(f"📅 启动时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             print("=" * 50)
