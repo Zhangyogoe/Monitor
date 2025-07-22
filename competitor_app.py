@@ -346,22 +346,44 @@ def get_session_posts(session_id):
             'message': str(e)
         })
 
+@app.route('/api/feishu/push/<int:session_id>', methods=['POST'])
+def push_to_feishu(session_id):
+    """手动推送指定会话内容到飞书"""
+    try:
+        # 检查访问权限 - 只允许localhost访问
+        if request.remote_addr != '127.0.0.1':
+            return jsonify({
+                'success': False,
+                'message': '权限不足：仅允许本地访问此功能'
+            }), 403
+        
+        with app.app_context():
+            result = monitor_service.push_session_to_feishu(session_id)
+            return jsonify(result)
+    except Exception as e:
+        logger.error(f"推送到飞书失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        })
+
 # 定时任务
 def scheduled_crawl():
-    """定时爬取任务（每日10点）- 有内容时推送飞书"""
+    """定时爬取任务（每日11点）- 有内容时推送飞书"""
     logger.info("🕘 执行定时竞品监控...")
     try:
-        result = monitor_service.execute_scheduled_crawl()
-        logger.info(f"定时监控完成: {result}")
-        
-        # 记录飞书推送状态
-        if result.get("feishu_sent"):
-            logger.info("📱 飞书消息已推送")
-        elif result.get("processed_posts", 0) > 0:
-            logger.warning("⚠️ 有新内容但飞书推送失败")
-        else:
-            logger.info("📱 无新内容，未推送飞书消息")
+        with app.app_context():  # 添加Flask应用上下文
+            result = monitor_service.execute_scheduled_crawl()
+            logger.info(f"定时监控完成: {result}")
             
+            # 记录飞书推送状态
+            if result.get("feishu_sent"):
+                logger.info("📱 飞书消息已推送")
+            elif result.get("processed_posts", 0) > 0:
+                logger.warning("⚠️ 有新内容但飞书推送失败")
+            else:
+                logger.info("📱 无新内容，未推送飞书消息")
+                
     except Exception as e:
         logger.error(f"定时监控失败: {e}")
 
@@ -413,30 +435,15 @@ def init_sample_configs():
             logger.info(f"添加示例配置: {result}")
 
 def init_scheduler():
-    """初始化调度器和定时任务"""
+    """初始化调度器（不添加定时任务）"""
     try:
         # 配置调度器
         scheduler.init_app(app)
         scheduler.start()
-        logger.info("✅ 调度器已启动")
+        logger.info("✅ 调度器已启动（无定时任务）")
         
-        # 添加定时任务（每日10点）
-        scheduler.add_job(
-            id='daily_crawl',
-            func=scheduled_crawl,
-            trigger='cron',
-            hour=10,
-            minute=0,
-            replace_existing=True
-        )
-        logger.info("✅ 定时任务已添加：每日10:00执行爬取")
-        
-        # 显示下次执行时间
-        jobs = scheduler.get_jobs()
-        for job in jobs:
-            if job.id == 'daily_crawl':
-                logger.info(f"📅 下次执行时间: {job.next_run_time}")
-                break
+        # 不再添加定时任务 - 改为手动推送模式
+        logger.info("📱 已切换为手动推送模式")
                 
     except Exception as e:
         logger.error(f"❌ 初始化调度器失败: {e}")

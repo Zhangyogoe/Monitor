@@ -66,9 +66,9 @@ def crawl_reddit_simple(subreddit_url: str, keywords: List[str] = None) -> List[
             logger.warning("Reddit API返回数据结构异常")
             return []
         
-        # 24小时前的时间戳
-        twenty_four_hours_ago = datetime.now() - timedelta(hours=24)
-        twenty_four_hours_timestamp = twenty_four_hours_ago.timestamp()
+        # 72小时前的时间戳
+        seventy_two_hours_ago = datetime.now() - timedelta(hours=72)
+        seventy_two_hours_timestamp = seventy_two_hours_ago.timestamp()
         
         # 处理帖子数据
         for item in data['data']['children']:
@@ -77,8 +77,8 @@ def crawl_reddit_simple(subreddit_url: str, keywords: List[str] = None) -> List[
                 
                 # 检查时间（UTC时间戳）
                 created_utc = post_data.get('created_utc', 0)
-                if created_utc < twenty_four_hours_timestamp:
-                    continue  # 跳过24小时前的帖子
+                if created_utc < seventy_two_hours_timestamp:
+                    continue  # 跳过72小时前的帖子
                 
                 # 提取帖子信息
                 title = post_data.get('title', '').strip()

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 竞品爬虫 - 支持Kickstarter、Reddit等平台
-专注于24小时内的内容爬取
+专注于72小时内的内容爬取
 """
 
 import re
@@ -51,8 +51,8 @@ class CompetitorCrawler:
         })
         self.driver = None
         
-        # 24小时时间范围
-        self.time_cutoff = datetime.now() - timedelta(hours=24)
+        # 72小时时间范围
+        self.time_cutoff = datetime.now() - timedelta(hours=72)
     
     def crawl_by_config(self, config: Dict[str, Any]) -> List[CompetitorPost]:
         """根据配置爬取内容"""
@@ -69,13 +69,13 @@ class CompetitorCrawler:
             # 网页更新模式
             posts = self.crawl_webpage_updates(config)
         
-        # 过滤24小时内的内容
+        # 过滤72小时内的内容
         recent_posts = []
         for post in posts:
             if post.post_time and post.post_time >= self.time_cutoff:
                 recent_posts.append(post)
         
-        logger.info(f"爬取完成：总计 {len(posts)} 条，24小时内 {len(recent_posts)} 条")
+        logger.info(f"爬取完成：总计 {len(posts)} 条，72小时内 {len(recent_posts)} 条")
         return recent_posts
     
     def crawl_account_posts(self, account_url: str) -> List[CompetitorPost]:
@@ -86,6 +86,8 @@ class CompetitorCrawler:
             return self._crawl_kickstarter_account(account_url)
         elif 'reddit.com' in domain:
             return self._crawl_reddit_user(account_url)
+        elif 'facebook.com' in domain:
+            return self._crawl_facebook_account(account_url)
         else:
             logger.warning(f"不支持的账号平台: {domain}")
             return []
@@ -211,10 +213,10 @@ class CompetitorCrawler:
                 logger.warning("Reddit API返回数据结构异常")
                 return []
             
-            # 24小时前的时间戳
+            # 72小时前的时间戳
             from datetime import datetime, timedelta
-            twenty_four_hours_ago = datetime.now() - timedelta(hours=24)
-            twenty_four_hours_timestamp = twenty_four_hours_ago.timestamp()
+            seventy_two_hours_ago = datetime.now() - timedelta(hours=72)
+            seventy_two_hours_timestamp = seventy_two_hours_ago.timestamp()
             
             # 处理帖子数据
             for item in data['data']['children']:
@@ -223,8 +225,8 @@ class CompetitorCrawler:
                     
                     # 检查时间（UTC时间戳）
                     created_utc = post_data.get('created_utc', 0)
-                    if created_utc < twenty_four_hours_timestamp:
-                        continue  # 跳过24小时前的帖子
+                    if created_utc < seventy_two_hours_timestamp:
+                        continue  # 跳过72小时前的帖子
                     
                     # 提取帖子信息
                     title = post_data.get('title', '').strip()
@@ -310,9 +312,9 @@ class CompetitorCrawler:
                     if not post_data:
                         continue
                     
-                    # 检查时间限制（24小时内）
+                    # 检查时间限制（72小时内）
                     created_utc = post_data.get('created_utc', 0)
-                    if not self._is_within_24_hours(created_utc):
+                    if not self._is_within_72_hours(created_utc):
                         continue
                     
                     # 提取帖子信息
@@ -720,8 +722,8 @@ class CompetitorCrawler:
             self.driver.quit()
             self.driver = None
     
-    def _is_within_24_hours(self, timestamp):
-        """检查时间戳是否在24小时内"""
+    def _is_within_72_hours(self, timestamp):
+        """检查时间戳是否在72小时内"""
         try:
             if isinstance(timestamp, (int, float)):
                 post_time = datetime.fromtimestamp(timestamp)
@@ -733,7 +735,7 @@ class CompetitorCrawler:
             
             now = datetime.now()
             time_diff = now - post_time
-            return time_diff.days == 0 and time_diff.seconds < 86400  # 24小时 = 86400秒
+            return time_diff.total_seconds() <= 72 * 3600  # 72小时 = 259200秒
         except:
             return True
     
@@ -1185,3 +1187,40 @@ class CompetitorCrawler:
             
         except Exception as e:
             logger.error(f"更新网页数据失败: {e}") 
+    
+    def _crawl_facebook_account(self, account_url: str) -> List[CompetitorPost]:
+        """爬取Facebook账号的帖子"""
+        posts = []
+        
+        try:
+            logger.info(f"🔵 开始爬取Facebook账号: {account_url}")
+            
+            # 导入Facebook爬虫
+            from .facebook_crawler import FacebookCrawler
+            
+            # 创建Facebook爬虫实例
+            facebook_crawler = FacebookCrawler()
+            
+            # 爬取Facebook帖子
+            facebook_posts = facebook_crawler.crawl_page(account_url, max_posts=20)
+            
+            # 转换为CompetitorPost格式
+            for fb_post in facebook_posts:
+                post = CompetitorPost()
+                post.title = fb_post.title
+                post.content = fb_post.content
+                post.author = fb_post.author
+                post.post_url = fb_post.post_url
+                post.post_time = fb_post.post_time
+                post.likes_count = fb_post.likes_count
+                post.comments_count = fb_post.comments_count
+                post.platform = "Facebook"
+                
+                posts.append(post)
+            
+            logger.info(f"✅ Facebook爬取完成: {len(posts)} 条帖子")
+            
+        except Exception as e:
+            logger.error(f"❌ Facebook账号爬取失败: {e}")
+        
+        return posts 

@@ -332,7 +332,8 @@ class CompetitorMonitorService:
                     # 发送飞书推送
                     feishu_success = self.feishu_service.send_daily_summary(
                         post_dicts, 
-                        "每日定时监控"
+                        "每日定时监控",
+                        session_id
                     )
                     
                     if feishu_success:
@@ -497,4 +498,60 @@ class CompetitorMonitorService:
             CompetitorPost.created_at.desc()
         ).all()
         
-        return [post.to_dict() for post in posts] 
+        return [post.to_dict() for post in posts]
+    
+    def push_session_to_feishu(self, session_id: int) -> Dict[str, Any]:
+        """手动推送指定会话内容到飞书"""
+        try:
+            # 获取会话信息
+            session = CrawlSession.query.get(session_id)
+            if not session:
+                return {
+                    "success": False,
+                    "message": "会话不存在"
+                }
+            
+            # 获取会话的所有帖子
+            posts = CompetitorPost.query.filter_by(session_id=session_id).order_by(
+                CompetitorPost.created_at.desc()
+            ).all()
+            
+            if not posts:
+                return {
+                    "success": False,
+                    "message": "该会话没有爬取到内容"
+                }
+            
+            logger.info(f"📱 手动推送会话 {session.session_name} 到飞书，包含 {len(posts)} 条内容")
+            
+            # 转换为字典格式
+            posts_data = [post.to_dict() for post in posts]
+            
+            # 发送到飞书（send_daily_summary方法内部会调用AI分析）
+            feishu_result = self.feishu_service.send_daily_summary(
+                posts_data, 
+                session.session_name,
+                session.id
+            )
+            
+            if feishu_result:
+                logger.info(f"✅ 手动推送到飞书成功: {session.session_name}")
+                return {
+                    "success": True,
+                    "message": f"成功推送 {len(posts)} 条内容到飞书",
+                    "posts_count": len(posts),
+                    "session_name": session.session_name
+                }
+            else:
+                logger.error(f"❌ 手动推送到飞书失败: {session.session_name}")
+                return {
+                    "success": False,
+                    "message": "推送到飞书失败，请检查飞书配置"
+                }
+                
+        except Exception as e:
+            logger.error(f"❌ 手动推送到飞书异常: {e}")
+            return {
+                "success": False,
+                "message": str(e)
+            } 

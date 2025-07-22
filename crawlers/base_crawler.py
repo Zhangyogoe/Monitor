@@ -10,7 +10,12 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from loguru import logger
-from config.config import config
+
+# 尝试导入配置，如果失败则使用默认值
+try:
+    import config
+except ImportError:
+    config = None
 
 class PostData:
     """帖子数据结构"""

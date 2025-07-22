@@ -36,33 +36,36 @@ class FeishuWebhookService:
         if not posts:
             return None
         
-        # 使用专门的简洁汇总提示词
+        # 使用按品牌分类的简洁汇总提示词
         summary_prompt = """
 请基于以下竞品动态数据，生成一份简洁的每日汇总推送，要求：
 
 1. 风格类似微信公众号推送，简洁明了
-2. 总字数控制在200字以内
-3. 重点突出最新的产品发布、重要更新、市场动态
+2. 总字数控制在300字以内
+3. 按品牌公司分类整理，每个品牌单独一段
 4. 使用简洁的分点式描述，不要冗长段落
 5. 语言专业但易懂，适合商业决策者阅读
 6. 去除markdown格式符号，使用纯文本
-7. 不需要总标题，直接从分类开始
+7. 不需要总标题，直接从品牌开始
 
 格式示例：
-🔥 产品发布
-• [品牌名] 发布新品XXX，主打功能YYY
+🔥 LightBurn 软件
+• 发布2.0版本更新，修复显示问题
+• 用户反映字体雕刻效果需要优化
 
-💡 技术更新  
-• [品牌名] 推出ZZZ技术，提升AAA性能
+💡 xTool 激光雕刻
+• 推出新款M1激光雕刻机
+• 社区用户分享创作技巧
 
-📈 市场反馈
-• 用户对BBB功能反响热烈
+⭐ Ortur 激光设备
+• 更新固件支持新材料
+• 用户咨询安装高度问题
 
-请基于实际数据生成汇总：
+请按品牌分类整理以下实际数据：
 """
         
         try:
-            # 调用AI生成简洁汇总
+            # 调用AI生成按品牌分类的汇总
             full_summary = self.ai_service.analyze_posts(posts, custom_prompt=summary_prompt)
             
             # 进一步精简处理
@@ -118,7 +121,7 @@ class FeishuWebhookService:
         
         return summary
     
-    def send_daily_summary(self, posts: List[Dict[str, Any]], session_name: str = None) -> bool:
+    def send_daily_summary(self, posts: List[Dict[str, Any]], session_name: str = None, session_id: int = None) -> bool:
         """发送每日汇总到飞书"""
         try:
             # 生成简洁汇总
@@ -129,7 +132,7 @@ class FeishuWebhookService:
                 return False
             
             # 构建飞书消息
-            message = self._build_feishu_message(summary, session_name)
+            message = self._build_feishu_message(summary, session_name, session_id)
             
             # 发送webhook
             response = requests.post(
@@ -150,7 +153,7 @@ class FeishuWebhookService:
             logger.error(f"❌ 飞书推送异常: {e}")
             return False
     
-    def _build_feishu_message(self, summary: str, session_name: str = None) -> Dict[str, Any]:
+    def _build_feishu_message(self, summary: str, session_name: str = None, session_id: int = None) -> Dict[str, Any]:
         """构建飞书消息格式"""
         
         # 添加时间戳
@@ -159,46 +162,34 @@ class FeishuWebhookService:
         if not session_name:
             session_name = "竞品动态监控"
         
-        # 构建卡片消息，支持更丰富的格式
+        # 生成详情页链接
+        if session_id:
+            detail_url = f"http://10.10.61.191:8080/session/{session_id}"
+        else:
+            detail_url = "http://10.10.61.191:8080/"
+        
+        # 使用简单可靠的富文本消息格式
         message = {
-            "msg_type": "interactive",
+            "msg_type": "post",
             "content": {
-                "config": {
-                    "wide_screen_mode": True
-                },
-                "header": {
-                    "title": {
-                        "tag": "plain_text",
-                        "content": f"📊 {current_time} 竞品动态"
-                    },
-                    "template": "blue"
-                },
-                "elements": [
-                    {
-                        "tag": "div",
-                        "text": {
-                            "tag": "lark_md",
-                            "content": self._format_summary_for_card(summary)
-                        }
-                    },
-                    {
-                        "tag": "hr"
-                    },
-                    {
-                        "tag": "action",
-                        "actions": [
-                            {
-                                "tag": "button",
-                                "text": {
-                                    "tag": "plain_text",
-                                    "content": "🔍 查看详情"
+                "post": {
+                    "zh_cn": {
+                        "title": f"📊 {current_time} 竞品动态",
+                        "content": [
+                            [
+                                {
+                                    "tag": "text",
+                                    "text": summary + "\n\n"
                                 },
-                                "type": "primary",
-                                "url": "http://localhost:8080/"
-                            }
+                                {
+                                    "tag": "a",
+                                    "text": "🔍 查看详情",
+                                    "href": detail_url
+                                }
+                            ]
                         ]
                     }
-                ]
+                }
             }
         }
         

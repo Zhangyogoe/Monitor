@@ -4,6 +4,7 @@ from .base_crawler import BaseCrawler, GenericCrawler
 from .weibo_crawler import WeiboCrawler
 from .product_crawler import ProductCrawler
 from .youtube_crawler import YouTubeCrawler
+from .facebook_adapter import FacebookCrawler
 
 class CrawlerFactory:
     """爬虫工厂类"""
@@ -14,6 +15,7 @@ class CrawlerFactory:
         "weibo": WeiboCrawler,
         "product": ProductCrawler,  # 产品网站专用爬虫
         "youtube": YouTubeCrawler,  # YouTube视频爬虫
+        "facebook": FacebookCrawler,  # Facebook页面爬虫
         # 可以继续添加其他网站的爬虫
         # "zhihu": ZhihuCrawler,
         # "xiaohongshu": XiaohongshuCrawler,
