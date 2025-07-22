@@ -14,6 +14,7 @@
 - **网页更新监控** - 智能检测网页内容变化，只报告更新部分
 - **开机自启动** - 电脑开机后自动运行，持续监控
 - **飞书选择推送** - 支持手动选择推送至飞书群聊，权限控制更安全
+<img width="948" height="450" alt="image" src="https://github.com/user-attachments/assets/a7d32710-1600-46a6-afce-e89234db946f" />
 
 ### 🤖 AI智能分析
 - **品牌自动分类** - 基于Gemini AI的智能品牌识别，按品牌公司分类展示
@@ -48,6 +49,8 @@
 只读查看: http://your-server-ip:8080/viewer
 配置管理: http://your-server-ip:8080/config
 ```
+<img width="1470" height="813" alt="6360d2ed00fb4af0733bb3e8052c2fe" src="https://github.com/user-attachments/assets/46ad6d59-1215-4db8-b83a-0c2e47432c20" />
+
 ### 方法二：本地部署
 
 #### 环境要求
